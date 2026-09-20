@@ -1,0 +1,107 @@
+---
+// Dark mode: system preference by default, with a manual override remembered
+// in localStorage. The blocking script that avoids a flash-of-wrong-theme on
+// page load lives in BaseLayout.astro's <head>, since it has to run before
+// first paint — this component only owns the button that flips the choice.
+---
+
+<button
+  id="theme-toggle"
+  class="theme-toggle"
+  type="button"
+  aria-label="Toggle dark mode"
+>
+  <svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+    <g stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <line x1="12" y1="1.5" x2="12" y2="4" />
+      <line x1="12" y1="20" x2="12" y2="22.5" />
+      <line x1="1.5" y1="12" x2="4" y2="12" />
+      <line x1="20" y1="12" x2="22.5" y2="12" />
+      <line x1="4.4" y1="4.4" x2="6.1" y2="6.1" />
+      <line x1="17.9" y1="17.9" x2="19.6" y2="19.6" />
+      <line x1="4.4" y1="19.6" x2="6.1" y2="17.9" />
+      <line x1="17.9" y1="6.1" x2="19.6" y2="4.4" />
+    </g>
+  </svg>
+  <svg class="icon icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.6"
+      stroke-linejoin="round"
+      d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.6 6.6 0 0 0 10.5 10.5Z"
+    />
+  </svg>
+</button>
+
+<style>
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-ink-soft);
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .theme-toggle:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .icon-moon {
+    display: none;
+  }
+
+  /* Reflects the *effective* theme — system or overridden — kept in sync by
+     the script below and by the blocking head script on load. */
+  :root[data-theme='dark'] .icon-sun {
+    display: none;
+  }
+  :root[data-theme='dark'] .icon-moon {
+    display: block;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .icon-sun {
+      display: none;
+    }
+    :root:not([data-theme='light']) .icon-moon {
+      display: block;
+    }
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    var button = document.getElementById('theme-toggle');
+    if (!button) return;
+
+    function systemTheme() {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    function effectiveTheme() {
+      return localStorage.getItem('theme') || systemTheme();
+    }
+
+    button.addEventListener('click', function () {
+      var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+  })();
+</script>

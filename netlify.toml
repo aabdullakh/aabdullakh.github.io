@@ -1,0 +1,15 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Astro's static build already emits a real 404.html, but Netlify only
+# serves that automatically for paths that 404 at the CDN level — this
+# makes sure a totally unknown route still gets the custom page instead of
+# Netlify's own default error page.
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404

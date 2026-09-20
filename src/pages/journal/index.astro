@@ -1,0 +1,59 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+import { getJournalEntries, groupByYear, uniqueTags } from '../../lib/content';
+
+const entries = await getJournalEntries();
+const groups = groupByYear(entries);
+const tags = uniqueTags(entries);
+---
+
+<BaseLayout title="Journal" description="Notes on what I'm building, learning, and thinking about.">
+  <div class="prose">
+    <h1>Journal</h1>
+    <p>Notes on what I'm building, learning, and thinking about — posted whenever I have something worth writing down.</p>
+
+    {
+      tags.length > 0 && (
+        <nav class="tag-filters" aria-label="Filter by tag">
+          <ul class="tag-list">
+            {tags.map((tag) => (
+              <li>
+                <a class="tag" href={`/journal/tag/${tag}/`}>
+                  {tag}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )
+    }
+
+    {
+      groups.map(([year, yearEntries]) => (
+        <section class="year-group">
+          <h2>{year}</h2>
+          {yearEntries.map((entry) => (
+            <PostCard entry={entry} />
+          ))}
+        </section>
+      ))
+    }
+
+    {entries.length === 0 && <p>Nothing here yet — check back soon.</p>}
+  </div>
+</BaseLayout>
+
+<style>
+  .tag-filters {
+    margin-top: var(--space-4);
+  }
+
+  .year-group {
+    margin-top: var(--space-5);
+  }
+
+  .year-group h2 {
+    margin-top: 0;
+  }
+</style>

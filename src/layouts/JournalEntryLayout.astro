@@ -1,0 +1,121 @@
+---
+import type { JournalEntry } from '../lib/content';
+import BaseLayout from './BaseLayout.astro';
+import TableOfContents from '../components/TableOfContents.astro';
+import { formatDate, toISODate } from '../lib/dates';
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  entry: JournalEntry;
+  headings: Heading[];
+  minutesRead: string;
+  // `render(entry)`'s `Content` is itself an Astro component — pass it
+  // through as a prop and invoke it below with `<Content />`.
+  Content: any;
+  prev?: JournalEntry;
+  next?: JournalEntry;
+}
+
+const { entry, headings, minutesRead, Content, prev, next } = Astro.props;
+const { title, date, updated, description, tags } = entry.data;
+---
+
+<BaseLayout title={title} description={description} article>
+  <article class="prose">
+    <a class="back-link meta" href="/journal/">&larr; Journal</a>
+    <h1>{title}</h1>
+    <p class="meta entry-meta">
+      <time datetime={toISODate(date)}>{formatDate(date)}</time>
+      {updated && <span> · updated <time datetime={toISODate(updated)}>{formatDate(updated)}</time></span>}
+      <span> · {minutesRead}</span>
+    </p>
+    {
+      tags.length > 0 && (
+        <ul class="tag-list">
+          {tags.map((tag) => (
+            <li>
+              <a class="tag" href={`/journal/tag/${tag}/`}>
+                {tag}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+
+    <TableOfContents headings={headings} />
+
+    <div class="numbered-headings entry-body">
+      <Content />
+    </div>
+
+    {
+      (prev || next) && (
+        <nav class="entry-nav" aria-label="More journal entries">
+          <div>
+            {prev && (
+              <a href={`/journal/${prev.id}/`}>
+                <span class="meta">&larr; Previous</span>
+                <br />
+                {prev.data.title}
+              </a>
+            )}
+          </div>
+          <div class="entry-nav-next">
+            {next && (
+              <a href={`/journal/${next.id}/`}>
+                <span class="meta">Next &rarr;</span>
+                <br />
+                {next.data.title}
+              </a>
+            )}
+          </div>
+        </nav>
+      )
+    }
+  </article>
+</BaseLayout>
+
+<style>
+  .back-link {
+    display: inline-block;
+    text-decoration: none;
+    margin-bottom: var(--space-3);
+  }
+
+  .entry-meta {
+    margin-top: var(--space-2);
+  }
+
+  .entry-body {
+    margin-top: var(--space-4);
+  }
+
+  .entry-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+    font-size: 0.95rem;
+  }
+
+  .entry-nav a {
+    text-decoration: none;
+    color: var(--color-ink);
+  }
+
+  .entry-nav a:hover {
+    color: var(--color-accent);
+  }
+
+  .entry-nav-next {
+    text-align: right;
+  }
+</style>

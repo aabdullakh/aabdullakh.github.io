@@ -1,0 +1,71 @@
+---
+// Astro components: everything above the `---` fence runs on the server (or
+// at build time, for a fully static page like this one) and never ships to
+// the browser. It's how you fetch data / do setup for the markup below.
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import SeoHead from '../components/SeoHead.astro';
+
+// Fontsource ships one CSS file per weight+style; importing them here (rather
+// than a Google Fonts <link>) is what makes the type self-hosted — Vite
+// bundles the referenced .woff2 files straight into the build.
+import '@fontsource/source-serif-4/400.css';
+import '@fontsource/source-serif-4/400-italic.css';
+import '@fontsource/source-serif-4/600.css';
+import '@fontsource/source-serif-4/700.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@fontsource/jetbrains-mono/700.css';
+import 'katex/dist/katex.min.css';
+
+import '../styles/fonts.css';
+import '../styles/global.css';
+import '../styles/sidenotes.css';
+import '../styles/print.css';
+
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  article?: boolean;
+}
+
+const { title, description, image, article } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <SeoHead title={title} description={description} image={image} article={article} />
+    <link rel="alternate" type="application/rss+xml" title="[PLACEHOLDER Name]" href="/rss.xml" />
+
+    {/*
+      Blocking, unbundled script (`is:inline`) so the saved theme applies
+      before the browser paints — otherwise you'd see a flash of the wrong
+      theme on every dark-mode reload. No stored choice = follow the system
+      preference via the CSS `@media (prefers-color-scheme: dark)` rules in
+      global.css, so there's nothing to do here in that case.
+    */}
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          if (stored === 'light' || stored === 'dark') {
+            document.documentElement.setAttribute('data-theme', stored);
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <Header />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

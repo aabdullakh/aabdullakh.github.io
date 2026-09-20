@@ -1,0 +1,32 @@
+---
+import { render } from 'astro:content';
+import JournalEntryLayout from '../../layouts/JournalEntryLayout.astro';
+import { getJournalEntries } from '../../lib/content';
+
+// `getStaticPaths` is how a dynamic route (`[slug].astro`) tells Astro every
+// concrete URL to build ahead of time — this runs once at build time, not
+// per-request, since the site is fully static.
+export async function getStaticPaths() {
+  const entries = await getJournalEntries();
+  return entries.map((entry, index) => ({
+    params: { slug: entry.id },
+    props: {
+      entry,
+      prev: entries[index + 1],
+      next: entries[index - 1],
+    },
+  }));
+}
+
+const { entry, prev, next } = Astro.props;
+const { Content, headings, remarkPluginFrontmatter } = await render(entry);
+---
+
+<JournalEntryLayout
+  entry={entry}
+  headings={headings}
+  minutesRead={remarkPluginFrontmatter.minutesRead}
+  Content={Content}
+  prev={prev}
+  next={next}
+/>

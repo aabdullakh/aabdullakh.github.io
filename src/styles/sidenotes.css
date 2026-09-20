@@ -1,0 +1,73 @@
+/* Footnotes rendered as sidenotes (see src/plugins/rehype-sidenotes.mjs).
+   Wide screens: the note floats in the right margin, vertically near its
+   reference, revealed on hover/focus for a lighter page by default. Narrow
+   screens: a checkbox + label (no JS) toggles the note open inline, like a
+   real footnote you tap to read. */
+
+.sidenote-checkbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidenote-toggle {
+  cursor: pointer;
+}
+
+.sidenote-number {
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+  font-size: 0.7em;
+}
+
+.sidenote {
+  display: none;
+}
+
+/* Narrow screens: tapping the number reveals the note as an inset block
+   right where it was referenced. */
+@media (max-width: 63.9999em) {
+  .sidenote-checkbox:checked ~ .sidenote {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--color-ink-soft);
+    background: var(--color-bg-raised);
+    border-left: 2px solid var(--color-accent);
+    padding: var(--space-2) var(--space-3);
+    margin: var(--space-2) 0;
+  }
+
+  .sidenote .sidenote-number {
+    display: none;
+  }
+}
+
+/* Wide screens: the reading column narrows to make room for a true margin
+   column, and each note floats there instead of needing a tap to open. */
+@media (min-width: 64em) {
+  .prose:has(.sidenote-wrapper) {
+    --content-width: 640px;
+  }
+
+  .sidenote-toggle {
+    cursor: default;
+  }
+
+  .sidenote {
+    display: block;
+    float: right;
+    clear: right;
+    width: 220px;
+    margin-right: -280px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--color-ink-soft);
+  }
+
+  .sidenote .sidenote-number {
+    margin-right: 0.4em;
+  }
+}

@@ -1,0 +1,29 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PostCard from '../../../components/PostCard.astro';
+import { getJournalEntries, uniqueTags, type JournalEntry } from '../../../lib/content';
+
+interface Props {
+  entries: JournalEntry[];
+}
+
+export async function getStaticPaths() {
+  const entries = await getJournalEntries();
+  const tags = uniqueTags(entries);
+  return tags.map((tag) => ({
+    params: { tag },
+    props: { entries: entries.filter((entry) => entry.data.tags.includes(tag)) },
+  }));
+}
+
+const { tag } = Astro.params;
+const { entries } = Astro.props;
+---
+
+<BaseLayout title={`Tag: ${tag}`} description={`Journal entries tagged "${tag}".`}>
+  <div class="prose">
+    <p class="meta"><a href="/journal/">&larr; All entries</a></p>
+    <h1>Tag: {tag}</h1>
+    {entries.map((entry) => <PostCard entry={entry} />)}
+  </div>
+</BaseLayout>

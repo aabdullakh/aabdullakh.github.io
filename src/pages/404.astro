@@ -1,0 +1,26 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="404" description="This page is undefined.">
+  <article class="prose not-found">
+    <p class="meta">error</p>
+    <h1><code>404: this page is undefined</code></h1>
+    <p>
+      Whatever you were looking for isn't declared anywhere in this scope. It might have been
+      renamed, moved, or never existed in the first place.
+    </p>
+    <p><a href="/">&larr; Back to a page that actually resolves</a></p>
+  </article>
+</BaseLayout>
+
+<style>
+  .not-found {
+    padding-block: var(--space-6);
+  }
+
+  .not-found h1 {
+    font-family: var(--font-mono);
+    font-size: 1.6rem;
+  }
+</style>

@@ -1,0 +1,68 @@
+---
+const year = new Date().getFullYear();
+// Astro replaces this at build time with the commit-independent build date,
+// which doubles as an honest "last updated" for a mostly-static site.
+const lastUpdated = new Date();
+---
+
+<footer class="site-footer">
+  <div class="wrapper footer-inner">
+    <ul class="footer-links">
+      <li><a href="https://github.com/PLACEHOLDER">GitHub</a></li>
+      <li><a href="https://linkedin.com/in/PLACEHOLDER">LinkedIn</a></li>
+      <li><a href="mailto:PLACEHOLDER@example.com">Email</a></li>
+      <li><a href="/rss.xml">RSS</a></li>
+      <li><a href="/colophon/">Colophon</a></li>
+    </ul>
+    <p class="footer-meta">
+      &copy; {year} [PLACEHOLDER Name] · built with <a href="https://astro.build">Astro</a> · last updated {
+        lastUpdated.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      }
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--space-6);
+  }
+
+  .footer-inner {
+    padding-block: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .footer-links {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    padding: 0;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .footer-links a {
+    text-decoration: none;
+    color: var(--color-ink-soft);
+  }
+
+  .footer-links a:hover {
+    color: var(--color-accent);
+  }
+
+  .footer-meta {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-ink-soft);
+    margin: 0;
+  }
+
+  .footer-meta a {
+    color: inherit;
+  }
+</style>

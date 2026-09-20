@@ -1,0 +1,140 @@
+---
+import { Image } from 'astro:assets';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import NowBox from '../components/NowBox.astro';
+import PostCard from '../components/PostCard.astro';
+import ProjectCard from '../components/ProjectCard.astro';
+import profilePhoto from '../assets/images/profile.jpg';
+import { getJournalEntries, getProjects } from '../lib/content';
+
+const recentEntries = (await getJournalEntries()).slice(0, 4);
+const featuredProjects = (await getProjects()).filter((entry) => entry.data.featured).slice(0, 4);
+---
+
+<BaseLayout
+  title="[PLACEHOLDER Name]"
+  description="Hi, I'm [PLACEHOLDER Name]. I study CS at [PLACEHOLDER University] and like building [PLACEHOLDER things]."
+>
+  <div class="prose">
+    <section class="intro">
+      <Image src={profilePhoto} alt="[PLACEHOLDER — a photo of me]" width={160} height={160} class="portrait" />
+      <div class="intro-text">
+        <h1>[PLACEHOLDER Name]</h1>
+        <p class="tagline">
+          Hi, I'm [PLACEHOLDER Name]. I study CS at [PLACEHOLDER University] and like building
+          [PLACEHOLDER things I like — e.g. small tools, compilers, generative art].
+        </p>
+        <ul class="intro-links">
+          <li><a href="https://github.com/PLACEHOLDER">GitHub</a></li>
+          <li><a href="https://linkedin.com/in/PLACEHOLDER">LinkedIn</a></li>
+          <li><a href="mailto:PLACEHOLDER@example.com">Email</a></li>
+          <li><a href="/resume.pdf">Resume</a></li>
+        </ul>
+      </div>
+    </section>
+
+    <NowBox />
+
+    <section class="home-section">
+      <div class="section-header">
+        <h2>Recent writing</h2>
+        <a class="meta" href="/journal/">All entries &rarr;</a>
+      </div>
+      {recentEntries.map((entry) => <PostCard entry={entry} />)}
+      {recentEntries.length === 0 && <p>Nothing published yet — check back soon.</p>}
+    </section>
+  </div>
+
+  <section class="home-section wrapper">
+    <div class="section-header">
+      <h2>Things I've built</h2>
+      <a class="meta" href="/projects/">All projects &rarr;</a>
+    </div>
+    <div class="project-grid">
+      {featuredProjects.map((entry) => <ProjectCard entry={entry} />)}
+    </div>
+    {featuredProjects.length === 0 && <p>Nothing featured yet — check back soon.</p>}
+  </section>
+</BaseLayout>
+
+<style>
+  .intro {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: var(--space-3);
+  }
+
+  .portrait {
+    width: 120px;
+    height: 120px;
+    border-radius: 999px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .intro-text {
+    flex: 1 1 320px;
+  }
+
+  .intro h1 {
+    margin-bottom: var(--space-2);
+  }
+
+  .tagline {
+    margin-top: 0;
+    color: var(--color-ink-soft);
+  }
+
+  .intro-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    list-style: none;
+    padding: 0;
+    margin: var(--space-3) 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+
+  .intro-links a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .intro-links a:hover {
+    text-decoration: underline;
+  }
+
+  .home-section {
+    margin-top: var(--space-6);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  .section-header h2 {
+    margin-top: 0;
+  }
+
+  .section-header a {
+    text-decoration: none;
+  }
+
+  .section-header a:hover {
+    color: var(--color-accent);
+  }
+
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+  }
+</style>

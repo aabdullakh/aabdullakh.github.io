@@ -1,0 +1,34 @@
+/* Latin Modern Roman — the "web Computer Modern" LaTeX touch, used only for
+   headings and the site name. Self-hosted under the GUST Font License; see
+   public/fonts/latin-modern-roman/LICENSE.txt for the full text. */
+@font-face {
+  font-family: 'Latin Modern Roman';
+  src: url('/fonts/latin-modern-roman/lmroman-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Latin Modern Roman';
+  src: url('/fonts/latin-modern-roman/lmroman-italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Latin Modern Roman';
+  src: url('/fonts/latin-modern-roman/lmroman-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Latin Modern Roman';
+  src: url('/fonts/latin-modern-roman/lmroman-bolditalic.woff2') format('woff2');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}

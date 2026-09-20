@@ -1,0 +1,60 @@
+@media print {
+  nav,
+  .theme-toggle,
+  .now-box,
+  .sidenote-toggle,
+  .sidenote-checkbox,
+  .site-footer,
+  .toc,
+  .tag-filters,
+  .back-link {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 11pt;
+  }
+
+  .prose,
+  .wrapper {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  a {
+    color: #000;
+    text-decoration: underline;
+  }
+
+  /* Show link destinations since there's no way to click through on paper. */
+  a[href^='http']::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.8em;
+    color: #444;
+  }
+
+  .sidenote {
+    display: block;
+    float: none;
+    width: auto;
+    margin: 0.5em 0;
+    font-size: 0.85em;
+    border-left: 2px solid #999;
+    padding-left: 0.75em;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    page-break-after: avoid;
+  }
+
+  pre,
+  blockquote,
+  figure {
+    page-break-inside: avoid;
+  }
+}

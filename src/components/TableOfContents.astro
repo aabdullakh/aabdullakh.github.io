@@ -1,0 +1,65 @@
+---
+// `render(entry)` from astro:content returns a `headings` array (depth, slug,
+// text) alongside the `<Content />` component — Astro extracts this straight
+// from the Markdown's h2/h3s, so there's no separate outline to maintain.
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings: Heading[];
+}
+
+const { headings } = Astro.props;
+// h2 only — h3s under a long post would make the outline noisy rather than helpful.
+const items = headings.filter((h) => h.depth === 2);
+---
+
+{
+  items.length > 1 && (
+    <nav class="toc" aria-label="Table of contents">
+      <p class="toc-label">Contents</p>
+      <ol>
+        {items.map((heading) => (
+          <li>
+            <a href={`#${heading.slug}`}>{heading.text}</a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
+<style>
+  .toc {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: var(--space-3) var(--space-4);
+    margin: var(--space-4) 0 var(--space-5);
+  }
+
+  .toc-label {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .toc ol {
+    margin: var(--space-2) 0 0;
+    padding-left: 1.2em;
+  }
+
+  .toc a {
+    text-decoration: none;
+    color: var(--color-ink);
+  }
+
+  .toc a:hover {
+    color: var(--color-accent);
+  }
+</style>

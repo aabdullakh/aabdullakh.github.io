@@ -1,0 +1,43 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Colophon" description="A short, casual note on how this site is built.">
+  <article class="prose">
+    <h1>Colophon</h1>
+
+    <p>
+      This site is built with <a href="https://astro.build">Astro</a> and TypeScript, and written in
+      plain CSS — no Tailwind, no component library. It's a static site: every page is generated at
+      build time and served as plain HTML.
+    </p>
+
+    <p>
+      The headings (and my name up top) are set in <strong>Latin Modern Roman</strong>, a modern
+      digital descendant of Donald Knuth's Computer Modern — the typeface every LaTeX document uses
+      by default. It's self-hosted here under the GUST Font License. Body text is
+      <strong>Source Serif 4</strong>, and anything UI-ish — nav, tags, dates, code — is set in
+      <strong>JetBrains Mono</strong>. All three are self-hosted; nothing loads from a font CDN.
+    </p>
+
+    <p>
+      Journal entries support math via <a href="https://katex.org">KaTeX</a>, and footnotes render as
+      sidenotes in the margin on wide screens (a small custom
+      <a href="https://github.com/rehypejs/rehype">rehype</a> plugin rewrites standard Markdown
+      footnotes into that layout — see <code>src/plugins/rehype-sidenotes.mjs</code> if you're
+      curious). Code blocks are highlighted with Shiki, in a light and dark theme pair that follows
+      whatever mode the page is in.
+    </p>
+
+    <p>
+      Content lives as plain Markdown files in <code>src/content/journal</code> and
+      <code>src/content/projects</code>, validated against a schema so a typo in the frontmatter
+      fails the build instead of quietly breaking a page.
+    </p>
+
+    <p>
+      Deployed on [PLACEHOLDER — Netlify or Vercel]. Source is on
+      <a href="https://github.com/PLACEHOLDER">GitHub</a>, if you want to poke around.
+    </p>
+  </article>
+</BaseLayout>

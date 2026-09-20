@@ -1,0 +1,54 @@
+---
+// Update these by hand whenever your "now" changes — no content collection
+// needed for three lines of text that change every few weeks.
+const updated = new Date('2026-09-01');
+const items = [
+  'Learning: [PLACEHOLDER — e.g. "how query planners pick join order"]',
+  'Building: [PLACEHOLDER — e.g. "a tiny Astro site (this one)"]',
+  'Reading: [PLACEHOLDER — e.g. "Designing Data-Intensive Applications"]',
+];
+---
+
+<section class="now-box" aria-label="What I'm up to now">
+  <div class="now-header">
+    <h2>Now</h2>
+    <p class="meta">
+      updated {updated.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+    </p>
+  </div>
+  <ul>
+    {items.map((item) => <li>{item}</li>)}
+  </ul>
+</section>
+
+<style>
+  .now-box {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg-raised);
+    padding: var(--space-4);
+    margin-top: var(--space-5);
+  }
+
+  .now-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .now-box h2 {
+    font-size: 1.05rem;
+    margin: 0;
+  }
+
+  .now-box ul {
+    margin: var(--space-3) 0 0;
+    padding-left: 1.1em;
+  }
+
+  .now-box li + li {
+    margin-top: var(--space-2);
+  }
+</style>
