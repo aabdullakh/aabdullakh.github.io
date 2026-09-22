@@ -11,8 +11,8 @@ import { remarkReadingTime } from './src/plugins/remark-reading-time.mjs';
 // https://astro.build/config
 export default defineConfig({
   // Used to generate absolute URLs for the sitemap, RSS feed, and canonical/OG tags.
-  // [PLACEHOLDER] — swap in your real domain once you've registered one.
-  site: 'https://example.com',
+  // This is a GitHub Pages user site, served from the domain root, so no `base` is set.
+  site: 'https://aabdullakh.github.io',
 
   integrations: [sitemap()],
 

@@ -109,12 +109,12 @@ Fonts are declared in the same file as `--font-heading` (Latin Modern Roman), `-
 
 ## Deploying
 
-The build is fully static (`output: 'static'`, the Astro default) — no server runtime is required, so both of these are free tiers with no extra configuration beyond what's already in this repo.
+The site is hosted on [GitHub Pages](https://pages.github.com) as a user site at `https://aabdullakh.github.io`. The build is fully static (`output: 'static'`, the Astro default), so no server runtime is needed.
 
-**Netlify** — `netlify.toml` at the repo root already sets the build command and publish directory. Push to GitHub, then in Netlify: **Add new site → Import an existing project**, pick the repo, and click deploy — it reads `netlify.toml` automatically.
+Deployment is handled by `.github/workflows/deploy.yml`: every push to `main` runs the official [`withastro/action`](https://github.com/withastro/action) to install dependencies and build the site, then [`actions/deploy-pages`](https://github.com/actions/deploy-pages) publishes `dist/`. You can also trigger a deploy manually from the repo's **Actions** tab (**Deploy to GitHub Pages → Run workflow**).
 
-**Vercel** — no config file needed; Vercel auto-detects Astro. Push to GitHub, then **Add New… → Project** in the Vercel dashboard, import the repo, and deploy with the defaults.
+One-time setup: in the repo on GitHub, go to **Settings → Pages**, and under **Build and deployment → Source** choose **GitHub Actions**.
 
-**Custom domain**, either platform: buy the domain wherever you like, then in the site's dashboard go to **Domain settings → Add a domain**, enter it, and add the DNS records the dashboard shows you (usually an `A`/`ALIAS` record at the registrar for the root domain, and a `CNAME` for `www`). Both platforms provision HTTPS automatically once DNS resolves — this can take anywhere from a few minutes to a few hours depending on your registrar.
+Because this is a user site (repo named `aabdullakh.github.io`), it's served from the domain root, so `astro.config.mjs` sets `site` but no `base`, and root-relative links like `/journal/` work as-is. If you ever move the site to a project repo (served from `https://aabdullakh.github.io/<repo>/`), you'd need to add `base: '/<repo>'` and prefix internal links with `import.meta.env.BASE_URL`.
 
-One more thing to do once you have a real domain: update `site: 'https://example.com'` in `astro.config.mjs` to your actual domain — it's what the sitemap, RSS feed, and Open Graph tags use to build absolute URLs.
+**Custom domain** (optional): in **Settings → Pages → Custom domain**, enter the domain and save, then add the DNS records GitHub shows you at your registrar (`A`/`AAAA` records for an apex domain, or a `CNAME` pointing at `aabdullakh.github.io` for a subdomain like `www`). Also add a `public/CNAME` file containing the domain so it survives each deploy, tick **Enforce HTTPS** once the certificate is issued, and update `site` in `astro.config.mjs` and the `Sitemap:` line in `public/robots.txt` to the new domain.
