@@ -8,17 +8,14 @@ const lastUpdated = new Date();
 <footer class="site-footer">
   <div class="wrapper footer-inner">
     <ul class="footer-links">
-      <li><a href="https://github.com/PLACEHOLDER">GitHub</a></li>
-      <li><a href="https://linkedin.com/in/PLACEHOLDER">LinkedIn</a></li>
-      <li><a href="mailto:PLACEHOLDER@example.com">Email</a></li>
-      <li><a href="/rss.xml">RSS</a></li>
-      <li><a href="/colophon/">Colophon</a></li>
+      <li><a href="https://github.com/aabdullakh">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/abdullahabs/">LinkedIn</a></li>
+      <li><a href="mailto:abdullah.abshukur@gmail.com">Email</a></li>
+    
     </ul>
-    <p class="footer-meta">
-      &copy; {year} [PLACEHOLDER Name] · built with <a href="https://astro.build">Astro</a> · last updated {
-        lastUpdated.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-      }
-    </p>
+   <p class="footer-meta">
+  © {new Date().getFullYear()} Abdullakh Abshukur
+</p>
   </div>
 </footer>
 
@@ -28,23 +25,23 @@ const lastUpdated = new Date();
     margin-top: var(--space-6);
   }
 
-  .footer-inner {
-    padding-block: var(--space-4);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
+.footer-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
 
-  .footer-links {
-    list-style: none;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    padding: 0;
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-  }
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.25rem;
+}
 
   .footer-links a {
     text-decoration: none;
@@ -55,12 +52,10 @@ const lastUpdated = new Date();
     color: var(--color-accent);
   }
 
-  .footer-meta {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: var(--color-ink-soft);
-    margin: 0;
-  }
+ .footer-meta {
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
 
   .footer-meta a {
     color: inherit;

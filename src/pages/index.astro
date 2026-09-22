@@ -1,33 +1,33 @@
+astro
 ---
 import { Image } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import profile from '../assets/images/profile.jpg';
 import NowBox from '../components/NowBox.astro';
 import PostCard from '../components/PostCard.astro';
 import ProjectCard from '../components/ProjectCard.astro';
-import profilePhoto from '../assets/images/profile.jpg';
 import { getJournalEntries, getProjects } from '../lib/content';
-
 const recentEntries = (await getJournalEntries()).slice(0, 4);
 const featuredProjects = (await getProjects()).filter((entry) => entry.data.featured).slice(0, 4);
 ---
 
 <BaseLayout
-  title="[Abdullakh Abshukur]"
-  description="Hi, I'm [PLACEHOLDER Name]. I study CS at [PLACEHOLDER University] and like building [PLACEHOLDER things]."
+  title="Abdullakh Abshukur"
+  description="Hi, I'm Abdullakh. I study CS at University of Houston and like building and shipping software products."
 >
   <div class="prose">
     <section class="intro">
-      <Image src={profilePhoto} alt="[PLACEHOLDER — a photo of me]" width={160} height={160} class="portrait" />
+      <Image src={profile} alt="Abdullakh" width={160} height={160} class="portrait" />
       <div class="intro-text">
-        <h1>[PLACEHOLDER Name]</h1>
+        <h1>Abdullakh Abshukur</h1>
         <p class="tagline">
-          Hi, I'm [PLACEHOLDER Name]. I study CS at [PLACEHOLDER University] and like building
-          [PLACEHOLDER things I like — e.g. small tools, compilers, generative art].
+          Hi, I'm Abdullakh. I study CS at University of Houston and like building
+          and shipping software products.
         </p>
         <ul class="intro-links">
-          <li><a href="https://github.com/PLACEHOLDER">GitHub</a></li>
-          <li><a href="https://linkedin.com/in/PLACEHOLDER">LinkedIn</a></li>
-          <li><a href="mailto:PLACEHOLDER@example.com">Email</a></li>
+          <li><a href="https://github.com/aabdullakh">GitHub</a></li>
+          <li><a href="https://www.linkedin.com/in/abdullahabs/">LinkedIn</a></li>
+          <li><a href="mailto:abdullah.abshukur@gmail.com">Email</a></li>
           <li><a href="/resume.pdf">Resume</a></li>
         </ul>
       </div>

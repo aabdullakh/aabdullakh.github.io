@@ -18,7 +18,7 @@ function isActive(href: string) {
 
 <header class="site-header">
   <div class="wrapper header-inner">
-    <a class="wordmark" href="/">[PLACEHOLDER Name]</a>
+    <a class="wordmark" href="/">abdu</a>
     <nav aria-label="Primary">
       <ul>
         {
@@ -41,14 +41,15 @@ function isActive(href: string) {
     border-bottom: 1px solid var(--color-border);
   }
 
-  .header-inner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding-block: var(--space-3);
-    flex-wrap: wrap;
-  }
+ .header-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem 1rem;
+}
 
   .wordmark {
     font-family: var(--font-heading);
