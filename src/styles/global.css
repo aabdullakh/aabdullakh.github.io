@@ -84,11 +84,13 @@ picture,
 svg {
   display: block;
   max-width: 100%;
+  height: auto;
 }
 
 /* Respect motion preferences — the theme toggle and hover effects are subtle
    already, but this covers anything added later too. */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -186,7 +188,7 @@ kbd {
   font-size: 0.875em;
 }
 
-:not(pre) > code {
+:not(pre)>code {
   background: var(--color-code-bg);
   padding: 0.15em 0.4em;
   border-radius: var(--radius);
@@ -221,6 +223,7 @@ pre.astro-code span {
 }
 
 @media (prefers-color-scheme: dark) {
+
   :root:not([data-theme='light']) pre.astro-code,
   :root:not([data-theme='light']) pre.astro-code span {
     background-color: var(--shiki-dark-bg) !important;
