@@ -1,3 +1,10 @@
+---
+title: "Building a network monitor that works from anywhere"
+date: 2026-09-24
+description: "Why vibe coders who leave their desktop running at home need to know when their internet drops, and how I built a Pico W monitor to find out."
+tags: ["systems", "iot", "learning"]
+---
+
 If you vibe code, you probably know this routine. You give your AI agent a big task, leave your desktop running at home, and head out. From your phone you check in, send a new prompt, and watch it build while you're on the bus or at class. Your home computer has quietly become a server that works while you don't.
 
 But there's a weak spot nobody talks about: your home internet. If the Wi-Fi drops at 2 PM, your agent stops, your remote session goes dead, and you won't find out until you get home and see that nothing happened for five hours. And when a session does fail, you're left guessing. Was it the agent? My code? Or just my internet?
