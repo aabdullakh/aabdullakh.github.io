@@ -11,7 +11,7 @@ const { title, date, description, tags } = entry.data;
 ---
 
 <article class="post-card">
-  <a class="post-link" href={`/journal/${entry.id}/`}>
+  <a class="post-link" href={`/blog/${entry.id}/`}>
     <h3>{title}</h3>
   </a>
   <p class="meta"><time datetime={toISODate(date)}>{formatDate(date)}</time></p>
@@ -21,7 +21,7 @@ const { title, date, description, tags } = entry.data;
       <ul class="tag-list">
         {tags.map((tag) => (
           <li>
-            <a class="tag" href={`/journal/tag/${tag}/`}>
+            <a class="tag" href={`/blog/tag/${tag}/`}>
               {tag}
             </a>
           </li>

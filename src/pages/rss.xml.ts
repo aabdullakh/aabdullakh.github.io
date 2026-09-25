@@ -12,7 +12,7 @@ export async function GET(context: APIContext) {
       title: entry.data.title,
       description: entry.data.description,
       pubDate: entry.data.date,
-      link: `/journal/${entry.id}/`,
+      link: `/blog/${entry.id}/`,
     })),
     customData: '<language>en-us</language>',
   });

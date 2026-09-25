@@ -27,7 +27,7 @@ const { title, date, updated, description, tags } = entry.data;
 
 <BaseLayout title={title} description={description} article>
   <article class="prose">
-    <a class="back-link meta" href="/journal/">&larr; Journal</a>
+    <a class="back-link meta" href="/blog/">&larr; Blog</a>
     <h1>{title}</h1>
     <p class="meta entry-meta">
       <time datetime={toISODate(date)}>{formatDate(date)}</time>
@@ -39,7 +39,7 @@ const { title, date, updated, description, tags } = entry.data;
         <ul class="tag-list">
           {tags.map((tag) => (
             <li>
-              <a class="tag" href={`/journal/tag/${tag}/`}>
+              <a class="tag" href={`/blog/tag/${tag}/`}>
                 {tag}
               </a>
             </li>
@@ -56,10 +56,10 @@ const { title, date, updated, description, tags } = entry.data;
 
     {
       (prev || next) && (
-        <nav class="entry-nav" aria-label="More journal entries">
+        <nav class="entry-nav" aria-label="More blog posts">
           <div>
             {prev && (
-              <a href={`/journal/${prev.id}/`}>
+              <a href={`/blog/${prev.id}/`}>
                 <span class="meta">&larr; Previous</span>
                 <br />
                 {prev.data.title}
@@ -68,7 +68,7 @@ const { title, date, updated, description, tags } = entry.data;
           </div>
           <div class="entry-nav-next">
             {next && (
-              <a href={`/journal/${next.id}/`}>
+              <a href={`/blog/${next.id}/`}>
                 <span class="meta">Next &rarr;</span>
                 <br />
                 {next.data.title}

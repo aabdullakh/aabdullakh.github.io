@@ -38,7 +38,7 @@ const featuredProjects = (await getProjects()).filter((entry) => entry.data.feat
     <section class="home-section">
       <div class="section-header">
         <h2>Recent writing</h2>
-        <a class="meta" href="/journal/">All entries &rarr;</a>
+        <a class="meta" href="/blog/">All entries &rarr;</a>
       </div>
       {recentEntries.map((entry) => <PostCard entry={entry} />)}
       {recentEntries.length === 0 && <p>Nothing published yet — check back soon.</p>}

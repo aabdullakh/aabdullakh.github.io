@@ -1,6 +1,6 @@
 # [PLACEHOLDER Name]'s personal site
 
-A personal portfolio + journal, built with [Astro](https://astro.build) and TypeScript. Plain CSS, self-hosted fonts, no Tailwind, no client framework.
+A personal portfolio + blog, built with [Astro](https://astro.build) and TypeScript. Plain CSS, self-hosted fonts, no Tailwind, no client framework.
 
 ## Running locally
 
@@ -16,7 +16,7 @@ The site is at `http://localhost:4321`. `npm run build` produces a static build 
 ```
 src/
 ├── content/
-│   ├── journal/       # one .md file per journal entry
+│   ├── journal/       # one .md file per blog post
 │   └── projects/      # one .md file per project
 ├── content.config.ts  # the zod schemas those files are validated against
 ├── components/        # small reusable pieces (cards, nav, theme toggle, …)
@@ -27,7 +27,7 @@ src/
 └── styles/               # plain CSS: tokens, fonts, sidenotes, print
 ```
 
-## Adding a journal entry
+## Adding a blog post
 
 Drop a new Markdown file into `src/content/journal/`, e.g. `src/content/journal/my-new-post.md`:
 
@@ -42,7 +42,7 @@ tags: [some-tag]
 Whatever you want to say.
 ```
 
-The filename becomes the URL slug (`my-new-post` → `/journal/my-new-post/`). Required fields are `title`, `date`, and `description`; `tags` defaults to an empty list, and `draft: true` hides an entry from listings, RSS, and the sitemap in production builds (`npm run dev` still shows drafts, so you can preview them). If you edit an old entry later, add an `updated: 2026-05-01` date and it'll show alongside the original date.
+The filename becomes the URL slug (`my-new-post` → `/blog/my-new-post/`). Required fields are `title`, `date`, and `description`; `tags` defaults to an empty list, and `draft: true` hides an entry from listings, RSS, and the sitemap in production builds (`npm run dev` still shows drafts, so you can preview them). If you edit an old entry later, add an `updated: 2026-05-01` date and it'll show alongside the original date.
 
 Get a frontmatter field wrong — a typo like `dat:` instead of `date:`, or a `date` that isn't a real date — and the dev server / build will fail with a clear error pointing at the file and field, instead of silently breaking the page.
 
@@ -71,7 +71,7 @@ liveUrl: https://my-project.example.com
 
 ## Math
 
-Journal entries support LaTeX math via [KaTeX](https://katex.org). Inline: `$e^{i\pi} + 1 = 0$`. Block:
+Blog posts support LaTeX math via [KaTeX](https://katex.org). Inline: `$e^{i\pi} + 1 = 0$`. Block:
 
 ```md
 $$
@@ -115,6 +115,6 @@ Deployment is handled by `.github/workflows/deploy.yml`: every push to `main` ru
 
 One-time setup: in the repo on GitHub, go to **Settings → Pages**, and under **Build and deployment → Source** choose **GitHub Actions**.
 
-Because this is a user site (repo named `aabdullakh.github.io`), it's served from the domain root, so `astro.config.mjs` sets `site` but no `base`, and root-relative links like `/journal/` work as-is. If you ever move the site to a project repo (served from `https://aabdullakh.github.io/<repo>/`), you'd need to add `base: '/<repo>'` and prefix internal links with `import.meta.env.BASE_URL`.
+Because this is a user site (repo named `aabdullakh.github.io`), it's served from the domain root, so `astro.config.mjs` sets `site` but no `base`, and root-relative links like `/blog/` work as-is. If you ever move the site to a project repo (served from `https://aabdullakh.github.io/<repo>/`), you'd need to add `base: '/<repo>'` and prefix internal links with `import.meta.env.BASE_URL`.
 
 **Custom domain** (optional): in **Settings → Pages → Custom domain**, enter the domain and save, then add the DNS records GitHub shows you at your registrar (`A`/`AAAA` records for an apex domain, or a `CNAME` pointing at `aabdullakh.github.io` for a subdomain like `www`). Also add a `public/CNAME` file containing the domain so it survives each deploy, tick **Enforce HTTPS** once the certificate is issued, and update `site` in `astro.config.mjs` and the `Sitemap:` line in `public/robots.txt` to the new domain.

@@ -20,9 +20,9 @@ const { tag } = Astro.params;
 const { entries } = Astro.props;
 ---
 
-<BaseLayout title={`Tag: ${tag}`} description={`Journal entries tagged "${tag}".`}>
+<BaseLayout title={`Tag: ${tag}`} description={`Blog posts tagged "${tag}".`}>
   <div class="prose">
-    <p class="meta"><a href="/journal/">&larr; All entries</a></p>
+    <p class="meta"><a href="/blog/">&larr; All entries</a></p>
     <h1>Tag: {tag}</h1>
     {entries.map((entry) => <PostCard entry={entry} />)}
   </div>

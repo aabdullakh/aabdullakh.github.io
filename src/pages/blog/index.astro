@@ -8,9 +8,9 @@ const groups = groupByYear(entries);
 const tags = uniqueTags(entries);
 ---
 
-<BaseLayout title="Journal" description="Notes on what I'm building, learning, and thinking about.">
+<BaseLayout title="Blog" description="Notes on what I'm building, learning, and thinking about.">
   <div class="prose">
-    <h1>Journal</h1>
+    <h1>Blog</h1>
     <p>Notes on what I'm building, learning, and thinking about — posted whenever I have something worth writing down.</p>
 
     {
@@ -19,7 +19,7 @@ const tags = uniqueTags(entries);
           <ul class="tag-list">
             {tags.map((tag) => (
               <li>
-                <a class="tag" href={`/journal/tag/${tag}/`}>
+                <a class="tag" href={`/blog/tag/${tag}/`}>
                   {tag}
                 </a>
               </li>
