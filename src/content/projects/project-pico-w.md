@@ -3,7 +3,7 @@ cover: "../../assets/images/pico.w.jpeg"
 title: Raspberry Pi Pico W Internet & Wi-Fi Monitor
 description: A self-contained, real-time local network telemetry monitor pwered by Pico W running MicroPython. Plug it into your home electricity and track Wi-Fi quality right from your phone.
 date: 2026-09-17
-tags: [typescript, systems]
+tags: [micropython, iot, networking]
 featured: true
 repoUrl: https://github.com/aabdullakh/pico_internet_monitor
 ---
