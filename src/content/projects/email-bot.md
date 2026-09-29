@@ -85,9 +85,6 @@ I built this with Claude as a pair programmer. I chose a learn-by-building appro
 
 Here are some of the prompts that shaped the project:
 
-**Where it started:** "It's hard to search for important emails from someone, so I want to build a bot where I can type: did the CS department text me back? Or any updates from the internship applications?"
-
-**Choosing how to learn:** "Let's build the project, and then from there we'll learn the concepts and what we did."
 
 **Checking cost before starting:** "Before we start, this project is going to be free and run free, right?"
 
