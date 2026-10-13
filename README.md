@@ -1,4 +1,4 @@
-# [PLACEHOLDER Name]'s personal site
+# Abdullakh Abshukur's personal site
 
 A personal portfolio + blog, built with [Astro](https://astro.build) and TypeScript. Plain CSS, self-hosted fonts, no Tailwind, no client framework.
 
