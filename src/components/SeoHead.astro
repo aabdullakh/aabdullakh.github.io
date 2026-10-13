@@ -10,7 +10,7 @@ const { title, description, image, article = false } = Astro.props;
 const siteName = 'Abdullakh Abshukur';
 const pageTitle = title === siteName ? title : `${title} · ${siteName}`;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-const ogImageURL = new URL(image ?? '/og-default.png', Astro.site);
+const ogImageURL = new URL(image ?? '/og-v2.png', Astro.site);
 ---
 
 <title>{pageTitle}</title>
