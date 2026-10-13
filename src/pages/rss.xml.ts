@@ -5,7 +5,7 @@ import { getJournalEntries } from '../lib/content';
 export async function GET(context: APIContext) {
   const entries = await getJournalEntries();
   return rss({
-    title: '[PLACEHOLDER Name]',
+    title: 'Abdullakh Abshukur',
     description: "Notes on what I'm building, learning, and thinking about.",
     site: context.site!,
     items: entries.map((entry) => ({
