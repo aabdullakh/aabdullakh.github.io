@@ -9,7 +9,13 @@ What happens when you drop a snake in a maze it can't see, and tell it to find t
 
 It does what you or I would do. It heads toward the goal, walks into a dead end, realizes it was wrong, backs out and tries another way. Along the way it draws a map of what it has learned, and each wrong turn makes its next guess a little smarter.
 
-That's the project I built. The idea behind it is something you use every day.
+That's the project I built. Here is one run of it:
+
+![A snake exploring a hidden maze in 3D, replanning each time it finds a wall](./astar-snake-explore.gif)
+
+*One run of the snake exploring a hidden maze. The dotted line is its current plan, and it changes every time the snake finds a wall.*
+
+The idea behind it is something you use every day.
 
 ## The idea behind your GPS
 
@@ -28,6 +34,10 @@ For every cell in the maze, A\* keeps three numbers:
 | **g** | The real cost of getting from the start to this cell. It's known exactly, because we already walked it. |
 | **h** | A *guess* of the cost left to reach the goal. It ignores walls and just counts grid steps. |
 | **f = g + h** | The predicted cost of the whole trip if it goes through this cell. |
+
+![A maze with g, h and f numbers written in each explored cell](./astar-snake-costs.png)
+
+*The search in action. Each cell shows g (top left), h (top right) and f = g + h (middle). Blue cells are already worked on, and yellow cells are waiting their turn. Along the winning route, f stays at 24 the whole way, because the guess turned out to be exactly right.*
 
 The rule is simple: **always work on the waiting cell with the lowest f.** When the cell it picks is the goal, the search is over, and A\* follows its "came from" links back to the start. That's the best path.
 
@@ -59,6 +69,14 @@ My first version was a robot, with straight lines and sharp corners, only up, do
 - **Natural movement:** the snake moves diagonally, cuts across open floor, and glides around corners like a real snake. A diagonal step costs a bit more than a straight one (about 1.41), and the guess h was adjusted to match.
 - **Fog of war:** in my favorite mode, the maze is hidden and the snake only sees a few cells around it. It makes a plan assuming the unseen parts are open, then makes a new plan every time it discovers a wall. Because it assumes the best case, its first plan is too optimistic, and every wall it finds can only make the route longer, so its estimate rises toward the real cost as it learns. Robots use the same idea to explore places nobody has mapped.
 - **3D view:** you can watch from above, or from a camera that follows the snake.
+
+![Two routes through an open room: one made of right angles, one cutting diagonally and then running straight](./astar-snake-smoothing.png)
+
+*The same room, two snakes. Left: 4 directions, so the route is made of right angles. Right: 8 directions plus smoothing, so it cuts across open floor. The dashed line is what A\* found on the grid, and the solid line is the route the snake follows.*
+
+![A 3D view of the maze with fog, a snake, a dotted plan and an apple](./astar-snake-explore-3d.png)
+
+*Explore mode in 3D. Unseen ground is grey, and the circle is how far the snake can see. The dotted line is its current plan, which assumes the unseen cells are open.*
 
 In my tests on hundreds of random mazes, the snake that couldn't see the maze travelled only about 13% farther than one that knew the whole thing. A\* also looked at far fewer cells than a plain search without the guess, which is the whole point of h.
 
