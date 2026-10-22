@@ -62,15 +62,13 @@ My first version was a robot, with straight lines and sharp corners, only up, do
 
 In my tests on hundreds of random mazes, the snake that couldn't see the maze travelled only about 13% farther than one that knew the whole thing. A\* also looked at far fewer cells than a plain search without the guess, which is the whole point of h.
 
-## How I built it
-
-I built this with Claude, an AI assistant, as a companion. But I didn't just copy what it wrote. I went through the project piece by piece, explained each part back in my own words, and fixed the things I had wrong. For example, I first thought h was the real distance left, and I had the maze's walls and floors backwards. Explaining it out loud is what found those mistakes.
-
 ## What I took from it
 
 - **Hard-sounding ideas are often simple underneath.** A\* is one formula and one habit: always try the most promising option first.
 - **Explaining something back is the fastest way to learn it.** My mistakes only showed up once I tried to say it simply.
 - **Keep the thinking separate from the looks.** That one choice let me add smooth movement, a hidden maze and a 3D view without rewriting the algorithm.
 - **Make it something you can see.** Watching the search spread cell by cell taught me more than reading about it.
+
+Even though it's just a simple project, a simple algorithm and a bit of code, it describes real life in a lot of ways. We know our starting point, and we know our goal, B. But like the snake, we never know the exact path to get there: which way we can go, which wall we'll run into. It might be a fast path, it might be a long one. What matters in the end is that we reach B.
 
 If you'd like to talk about the project, or about what I want to build next, I'd love to hear from you.
