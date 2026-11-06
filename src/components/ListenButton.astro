@@ -39,10 +39,13 @@
 
 <script>
   type Chunk = { text: string; el: Element | null };
+  type Slot = { i: number; start: number; end: number; src: AudioBufferSourceNode };
 
   const WORKER_URL = '/tts/kokoro-worker.js';
-  const LOOKAHEAD = 2; // how many chunks to synthesize ahead of playback
   const MAX_CHUNK = 260; // characters per synthesis call
+  const GAP_SENTENCE = 0.12; // seconds of silence between sentences
+  const GAP_PARAGRAPH = 0.4; // ...and between paragraphs/headings
+  const REFILL = 3; // after running dry, wait for this many sentences (doubles each time) before continuing
 
   const root = document.querySelector<HTMLElement>('[data-listen]');
   const body = document.querySelector<HTMLElement>('.entry-body');
@@ -70,11 +73,16 @@
     let ctx: AudioContext | null = null;
     let session = 0;
     let chunks: Chunk[] = [];
-    let playIndex = 0;
-    let requested = 0;
+    let firstIndex = 0; // where this session started reading
+    let nextToSchedule = 0; // next chunk to put on the audio timeline
+    let nextTime = 0; // audio-clock time where the next chunk starts
+    let starving = true; // timeline ran dry: wait for a few chunks before continuing
+    let dryRuns = 0; // how many times audio ran out this session
     const ready = new Map<number, AudioBuffer>();
-    let source: AudioBufferSourceNode | null = null;
+    let slots: Slot[] = [];
+    let ticker = 0;
     let highlighted: Element | null = null;
+    let fallbackIndex = 0;
 
     // ---------- UI ----------
     function setState(next: typeof state) {
@@ -101,8 +109,7 @@
       const title = document.querySelector('article h1')?.textContent?.trim();
       const out: Chunk[] = title ? [{ text: title + '.', el: null }] : [];
       const skip = 'pre, table, nav, figure, .sidenote, .katex, .toc';
-      const blocks = body.querySelectorAll('h2, h3, h4, p, li, blockquote');
-      blocks.forEach((el) => {
+      body.querySelectorAll('h2, h3, h4, p, li, blockquote').forEach((el) => {
         if (el.closest(skip)) return;
         if (el.matches('li') && el.querySelector('p, ul, ol')) return; // nested; read its children instead
         if (el.matches('blockquote') && el.querySelector('p')) return;
@@ -122,7 +129,6 @@
       let current = '';
       for (let s of sentences.map((x) => x.trim()).filter(Boolean)) {
         while (s.length > MAX_CHUNK) {
-          // Very long sentence: break at the last comma/semicolon before the limit.
           let cut = Math.max(s.lastIndexOf(', ', MAX_CHUNK), s.lastIndexOf('; ', MAX_CHUNK));
           if (cut < 40) cut = s.lastIndexOf(' ', MAX_CHUNK);
           if (cut < 1) cut = MAX_CHUNK;
@@ -135,6 +141,18 @@
       }
       if (current) pieces.push(current);
       return pieces;
+    }
+
+    // Kokoro pads each clip with silence; cut it so sentences flow naturally.
+    function trimSilence(a: Float32Array, rate: number): Float32Array {
+      const threshold = 0.01;
+      const pad = Math.round(rate * 0.03);
+      let s = 0;
+      let e = a.length - 1;
+      while (s < a.length && Math.abs(a[s]) < threshold) s++;
+      while (e > s && Math.abs(a[e]) < threshold) e--;
+      if (s >= e) return a;
+      return a.subarray(Math.max(0, s - pad), Math.min(a.length, e + pad));
     }
 
     // ---------- Kokoro (in a worker) ----------
@@ -153,82 +171,113 @@
         modelReady = true;
         if (state === 'loading') status.textContent = 'Preparing audio…';
       } else if (msg.type === 'audio') {
-        const [s, i] = String(msg.id).split(':').map(Number);
-        if (s !== session || !ctx) return; // result from a stopped session
-        const buf = ctx.createBuffer(1, msg.audio.length, msg.rate);
-        buf.copyToChannel(msg.audio, 0);
-        ready.set(i, buf);
-        if (!source && (state === 'playing' || state === 'loading')) playNext();
+        if (msg.session !== session || !ctx) return; // from a stopped session
+        const samples = trimSilence(msg.audio, msg.rate);
+        const buf = ctx.createBuffer(1, samples.length, msg.rate);
+        buf.copyToChannel(samples, 0);
+        ready.set(msg.index, buf);
+        schedule();
       } else if (msg.type === 'error') {
-        if (msg.id && Number(String(msg.id).split(':')[0]) !== session) return;
+        if (msg.session !== undefined && msg.session !== session) return;
         switchToFallback(msg.message);
       }
     }
 
-    function requestMore() {
-      while (requested < chunks.length && requested < playIndex + LOOKAHEAD + 1) {
-        getWorker().postMessage({
-          type: 'gen',
-          id: `${session}:${requested}`,
-          text: chunks[requested].text,
-          voice: voiceSel.value,
-          speed: Number(speedSel.value),
-        });
-        requested++;
+    // Put every chunk that is ready onto the audio timeline, back to back.
+    function schedule() {
+      if (!ctx || state === 'idle') return;
+      if (starving) {
+        let buffered = 0;
+        while (ready.has(nextToSchedule + buffered)) buffered++;
+        const needed = nextToSchedule === firstIndex ? 1 : Math.min(REFILL * 2 ** (dryRuns - 1), chunks.length - nextToSchedule);
+        if (buffered < needed) return;
+        starving = false;
+        nextTime = Math.max(nextTime, ctx.currentTime + 0.05);
+      }
+      while (ready.has(nextToSchedule)) {
+        const i = nextToSchedule;
+        const buf = ready.get(i)!;
+        ready.delete(i);
+        const prev = slots[slots.length - 1];
+        const gap = prev ? (chunks[prev.i].el === chunks[i].el ? GAP_SENTENCE : GAP_PARAGRAPH) : 0;
+        const start = Math.max(nextTime + gap, ctx.currentTime + 0.02);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.start(start);
+        slots.push({ i, start, end: start + buf.duration, src });
+        nextTime = start + buf.duration;
+        nextToSchedule++;
+      }
+      if (state === 'loading') {
+        setState('playing');
+        status.textContent = '';
       }
     }
 
-    function playNext() {
-      if (!ctx) return;
-      if (playIndex >= chunks.length) return stop();
-      const buf = ready.get(playIndex);
-      if (!buf) {
-        requestMore();
-        return; // onWorkerMessage calls playNext when it arrives
+    // Runs ~10 times a second: highlights the paragraph being heard,
+    // notices when audio ran out before the next sentence was ready, and ends.
+    function tick() {
+      if (!ctx || state === 'idle') return;
+      const now = ctx.currentTime;
+      slots = slots.filter((s) => s.end > now - 1);
+      const current = slots.find((s) => s.start <= now + 0.05 && s.end > now) || slots.find((s) => s.start > now);
+      if (current) highlight(chunks[current.i].el);
+      if (state !== 'playing') return;
+      const finishedAll = nextToSchedule >= chunks.length && now > nextTime;
+      if (finishedAll) return stop();
+      if (!starving && now > nextTime && nextToSchedule < chunks.length) {
+        starving = true; // ran dry: gather a few sentences, then continue
+        dryRuns++;
+        status.textContent = 'Buffering…';
+      } else if (!starving) {
+        status.textContent = '';
       }
-      ready.delete(playIndex);
-      highlight(chunks[playIndex].el);
-      if (state === 'loading') setState('playing');
-      status.textContent = '';
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      const mySession = session;
-      src.onended = () => {
-        if (mySession !== session || source !== src) return;
-        source = null;
-        playIndex++;
-        playNext();
-      };
-      source = src;
-      src.start();
-      requestMore();
     }
 
     async function start(from = 0) {
       chunks = collectChunks();
       if (!chunks.length) return;
       session++;
-      playIndex = Math.min(from, chunks.length - 1);
-      requested = playIndex;
+      firstIndex = nextToSchedule = Math.min(from, chunks.length - 1);
       ready.clear();
+      slots = [];
+      starving = true;
+      dryRuns = 0;
       setState('loading');
 
-      if (useFallback) return startFallback();
+      if (useFallback) return startFallback(firstIndex);
 
       ctx ??= new AudioContext();
       await ctx.resume();
+      nextTime = ctx.currentTime;
       status.textContent = modelReady ? 'Preparing audio…' : 'Loading voice…';
-      requestMore();
+
+      // Ask for the whole post at once; the worker makes it in reading order.
+      const w = getWorker();
+      w.postMessage({ type: 'cancel', session });
+      for (let i = firstIndex; i < chunks.length; i++) {
+        w.postMessage({ type: 'gen', session, index: i, text: chunks[i].text, voice: voiceSel.value, speed: Number(speedSel.value) });
+      }
+      clearInterval(ticker);
+      ticker = window.setInterval(tick, 100);
+    }
+
+    function currentIndex(): number {
+      if (useFallback) return fallbackIndex;
+      const now = ctx?.currentTime ?? 0;
+      const s = slots.find((x) => x.end > now);
+      return s ? s.i : nextToSchedule;
     }
 
     function stop() {
       session++;
-      if (source) {
-        const s = source;
-        source = null;
-        try { s.stop(); } catch {}
+      worker?.postMessage({ type: 'cancel', session });
+      clearInterval(ticker);
+      for (const s of slots) {
+        try { s.src.stop(); } catch {}
       }
+      slots = [];
       ready.clear();
       if (ctx?.state === 'suspended') ctx.resume();
       if ('speechSynthesis' in window) speechSynthesis.cancel();
@@ -240,23 +289,18 @@
       console.warn('[listen] Kokoro unavailable, using the browser voice:', reason);
       worker?.terminate();
       worker = null;
+      const at = currentIndex();
+      const wasActive = state !== 'idle';
+      stop();
       if (!('speechSynthesis' in window)) {
-        stop();
         status.textContent = 'Sorry, audio isn’t supported in this browser.';
         return;
       }
       useFallback = true;
-      const wasActive = state !== 'idle';
-      const at = playIndex;
-      if (source) { try { source.stop(); } catch {} source = null; }
-      if (wasActive) {
-        session++;
-        playIndex = at;
-        startFallback();
-      }
+      if (wasActive) start(at);
     }
 
-    function startFallback() {
+    function startFallback(from: number) {
       if (!('speechSynthesis' in window)) {
         setState('idle');
         status.textContent = 'Sorry, audio isn’t supported in this browser.';
@@ -269,14 +313,14 @@
       const speakFrom = (i: number) => {
         if (mySession !== session) return;
         if (i >= chunks.length) return stop();
-        playIndex = i;
+        fallbackIndex = i;
         highlight(chunks[i].el);
         const u = new SpeechSynthesisUtterance(chunks[i].text);
         u.rate = Number(speedSel.value);
         u.onend = () => speakFrom(i + 1);
         speechSynthesis.speak(u);
       };
-      speakFrom(playIndex);
+      speakFrom(from);
     }
 
     // ---------- Controls ----------
@@ -301,9 +345,9 @@
         localStorage.setItem('tts-voice', voiceSel.value);
         localStorage.setItem('tts-speed', speedSel.value);
       } catch {}
-      // Chunks already generated keep the old voice; restart from the current one.
-      if (state === 'playing' || state === 'paused') {
-        const at = playIndex;
+      // Audio already made uses the old voice; restart from the current sentence.
+      if (state !== 'idle') {
+        const at = currentIndex();
         stop();
         start(at);
       }

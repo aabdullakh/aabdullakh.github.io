@@ -8,12 +8,13 @@
 // It lives in a Web Worker so generating audio never freezes the page.
 // Protocol (main thread -> worker):
 //   { type: 'load' }                          start downloading the model
-//   { type: 'gen', id, text, voice, speed }   synthesize one chunk of text
+//   { type: 'gen', session, index, text, voice, speed }   synthesize one chunk
+//   { type: 'cancel', session }               drop queued chunks from older sessions
 // Worker -> main thread:
 //   { type: 'progress', loaded, total }       model download progress (bytes)
 //   { type: 'ready' }                         model loaded
-//   { type: 'audio', id, audio, rate }        Float32Array samples for chunk `id`
-//   { type: 'error', id?, message }
+//   { type: 'audio', session, index, audio, rate }  Float32Array samples
+//   { type: 'error', session?, message }
 
 import { KokoroTTS } from 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
 
@@ -46,7 +47,10 @@ function loadModel() {
 }
 
 // Chunks are generated one at a time, in the order they were requested.
+// The main thread asks for a whole post at once, so when the reader stops or
+// changes voice, everything still queued from the old session is skipped.
 let queue = Promise.resolve();
+let latestSession = 0;
 
 self.onmessage = (event) => {
   const msg = event.data;
@@ -56,15 +60,26 @@ self.onmessage = (event) => {
     return;
   }
 
+  if (msg.type === 'cancel') {
+    latestSession = Math.max(latestSession, msg.session);
+    return;
+  }
+
   if (msg.type === 'gen') {
+    latestSession = Math.max(latestSession, msg.session);
     queue = queue.then(async () => {
+      if (msg.session < latestSession) return; // stopped or restarted: skip
       try {
         const tts = await loadModel();
+        if (msg.session < latestSession) return;
         const out = await tts.generate(msg.text, { voice: msg.voice, speed: msg.speed });
         const samples = new Float32Array(out.audio); // own copy, so it can be transferred
-        self.postMessage({ type: 'audio', id: msg.id, audio: samples, rate: out.sampling_rate }, [samples.buffer]);
+        self.postMessage(
+          { type: 'audio', session: msg.session, index: msg.index, audio: samples, rate: out.sampling_rate },
+          [samples.buffer],
+        );
       } catch (err) {
-        self.postMessage({ type: 'error', id: msg.id, message: String(err?.message || err) });
+        self.postMessage({ type: 'error', session: msg.session, message: String(err?.message || err) });
       }
     });
   }
