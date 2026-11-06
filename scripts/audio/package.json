@@ -1,0 +1,17 @@
+{
+  "name": "post-audio",
+  "private": true,
+  "type": "module",
+  "description": "Turns blog posts into MP3s with Kokoro text-to-speech. Run from the site root: npm run audio",
+  "scripts": {
+    "generate": "node generate.mjs"
+  },
+  "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
+    "kokoro-js": "^1.2.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
+  }
+}

@@ -1,364 +1,185 @@
 ---
-// "Listen to this post": reads the article aloud with Kokoro, an open-source
-// text-to-speech model that runs entirely in the reader's browser (see
-// public/tts/kokoro-worker.js). Free, no API key, no server.
+// "Listen to this post": plays narration made ahead of time by
+// scripts/audio/generate.mjs (Kokoro, an open-source text-to-speech model).
+// Because the MP3 already exists, it plays straight through on any device,
+// with no model download. While it plays, the paragraph being read is highlighted.
 //
-// If the browser can't run the model (very old browser, or the download
-// fails), it falls back to the browser's built-in voice (Web Speech API).
+// If a post has no audio yet (e.g. local dev without `npm run audio`), nothing renders.
+import fs from 'node:fs';
+import path from 'node:path';
+
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+const manifestPath = path.join(process.cwd(), 'src/data/audio.json');
+const manifest = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : {};
+const entry = manifest[slug] as { src: string; duration: number; blocks: { t: number; k: string }[] } | undefined;
+
+const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 ---
 
-<div class="listen" data-listen>
-  <button type="button" class="listen-btn" data-listen-play aria-label="Listen to this post">
-    <svg class="icon icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"></path></svg>
-    <svg class="icon icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"></path></svg>
-    <span data-listen-label>Listen</span>
-  </button>
-  <button type="button" class="listen-btn listen-stop" data-listen-stop aria-label="Stop" hidden>
-    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z" fill="currentColor"></path></svg>
-  </button>
-  <label class="listen-option meta">
-    <span class="visually-hidden">Voice</span>
-    <select data-listen-voice aria-label="Voice">
-      <option value="am_michael">Michael</option>
-      <option value="af_heart">Heart</option>
-      <option value="am_fenrir">Fenrir</option>
-      <option value="af_bella">Bella</option>
-      <option value="bm_george">George (UK)</option>
-    </select>
-  </label>
-  <label class="listen-option meta">
-    <span class="visually-hidden">Speed</span>
-    <select data-listen-speed aria-label="Speed">
-      <option value="1">1×</option>
-      <option value="1.2">1.2×</option>
-      <option value="1.4">1.4×</option>
-    </select>
-  </label>
-  <span class="meta listen-status" data-listen-status aria-live="polite"></span>
-</div>
+{
+  entry && (
+    <div class="listen" data-listen data-blocks={JSON.stringify(entry.blocks)}>
+      <audio preload="none" src={entry.src} data-listen-audio />
+      <button type="button" class="listen-btn" data-listen-play aria-label="Listen to this post">
+        <svg class="icon icon-play" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 5v14l11-7z" fill="currentColor" />
+        </svg>
+        <svg class="icon icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor" />
+        </svg>
+        <span data-listen-label>Listen</span>
+      </button>
+      <input
+        class="listen-seek"
+        type="range"
+        min="0"
+        max={entry.duration}
+        step="1"
+        value="0"
+        aria-label="Seek"
+        data-listen-seek
+      />
+      <span class="meta listen-time" data-listen-time>
+        {fmt(entry.duration)}
+      </span>
+      <label class="listen-option meta">
+        <span class="visually-hidden">Speed</span>
+        <select data-listen-speed aria-label="Speed">
+          <option value="1">1×</option>
+          <option value="1.25">1.25×</option>
+          <option value="1.5">1.5×</option>
+          <option value="1.75">1.75×</option>
+          <option value="2">2×</option>
+        </select>
+      </label>
+    </div>
+  )
+}
 
 <script>
-  type Chunk = { text: string; el: Element | null };
-  type Slot = { i: number; start: number; end: number; src: AudioBufferSourceNode };
-
-  const WORKER_URL = '/tts/kokoro-worker.js';
-  const MAX_CHUNK = 260; // characters per synthesis call
-  const GAP_SENTENCE = 0.12; // seconds of silence between sentences
-  const GAP_PARAGRAPH = 0.4; // ...and between paragraphs/headings
-  const REFILL = 3; // after running dry, wait for this many sentences (doubles each time) before continuing
-
   const root = document.querySelector<HTMLElement>('[data-listen]');
   const body = document.querySelector<HTMLElement>('.entry-body');
-
   if (root && body) setup(root, body);
 
   function setup(root: HTMLElement, body: HTMLElement) {
+    const audio = root.querySelector<HTMLAudioElement>('[data-listen-audio]')!;
     const playBtn = root.querySelector<HTMLButtonElement>('[data-listen-play]')!;
-    const stopBtn = root.querySelector<HTMLButtonElement>('[data-listen-stop]')!;
     const label = root.querySelector<HTMLElement>('[data-listen-label]')!;
-    const status = root.querySelector<HTMLElement>('[data-listen-status]')!;
-    const voiceSel = root.querySelector<HTMLSelectElement>('[data-listen-voice]')!;
-    const speedSel = root.querySelector<HTMLSelectElement>('[data-listen-speed]')!;
+    const seek = root.querySelector<HTMLInputElement>('[data-listen-seek]')!;
+    const time = root.querySelector<HTMLElement>('[data-listen-time]')!;
+    const speed = root.querySelector<HTMLSelectElement>('[data-listen-speed]')!;
+    const blocks: { t: number; k: string }[] = JSON.parse(root.dataset.blocks || '[]');
+    const total = Number(seek.max);
+
+    const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
     try {
-      voiceSel.value = localStorage.getItem('tts-voice') || voiceSel.value;
-      speedSel.value = localStorage.getItem('tts-speed') || speedSel.value;
+      speed.value = localStorage.getItem('tts-speed') || '1';
     } catch {}
 
-    let state: 'idle' | 'loading' | 'playing' | 'paused' = 'idle';
-    let worker: Worker | null = null;
-    let modelReady = false;
-    let useFallback = !('Worker' in window) || typeof WebAssembly === 'undefined' || !('AudioContext' in window);
-
-    let ctx: AudioContext | null = null;
-    let session = 0;
-    let chunks: Chunk[] = [];
-    let firstIndex = 0; // where this session started reading
-    let nextToSchedule = 0; // next chunk to put on the audio timeline
-    let nextTime = 0; // audio-clock time where the next chunk starts
-    let starving = true; // timeline ran dry: wait for a few chunks before continuing
-    let dryRuns = 0; // how many times audio ran out this session
-    const ready = new Map<number, AudioBuffer>();
-    let slots: Slot[] = [];
-    let ticker = 0;
-    let highlighted: Element | null = null;
-    let fallbackIndex = 0;
-
-    // ---------- UI ----------
-    function setState(next: typeof state) {
-      state = next;
-      root.dataset.state = next;
-      label.textContent = next === 'playing' ? 'Pause' : next === 'paused' ? 'Resume' : next === 'loading' ? 'Loading…' : 'Listen';
-      playBtn.setAttribute('aria-label', label.textContent);
-      stopBtn.hidden = next === 'idle';
-      if (next === 'idle') {
-        highlight(null);
-        status.textContent = '';
+    // ---- Match each spoken block to its element on the page ----
+    // The generator stores the first 40 letters/digits of every block; the same
+    // key is computed here from the page, then matched in reading order.
+    const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 40);
+    const skip = 'pre, table, nav, figure, .sidenote, .katex, .toc';
+    const candidates = [...body.querySelectorAll('h2, h3, h4, p, li')].filter((el) => !el.closest(skip));
+    const textOf = (el: Element) => {
+      const c = el.cloneNode(true) as Element;
+      c.querySelectorAll('.sidenote, .sidenote-number, .katex, sup, ul, ol').forEach((n) => n.remove());
+      return c.textContent || '';
+    };
+    const keys = candidates.map((el) => key(textOf(el)));
+    let cursor = 0;
+    const blockEls: (Element | null)[] = blocks.map((b) => {
+      for (let j = cursor; j < candidates.length; j++) {
+        if (keys[j] && (keys[j].startsWith(b.k) || b.k.startsWith(keys[j]))) {
+          cursor = j + 1;
+          return candidates[j];
+        }
       }
-    }
+      return null;
+    });
 
+    let highlighted: Element | null = null;
     function highlight(el: Element | null) {
-      if (highlighted === el) return;
+      if (el === highlighted) return;
       highlighted?.classList.remove('tts-reading');
       el?.classList.add('tts-reading');
       highlighted = el;
     }
 
-    // ---------- Text ----------
-    function collectChunks(): Chunk[] {
-      const title = document.querySelector('article h1')?.textContent?.trim();
-      const out: Chunk[] = title ? [{ text: title + '.', el: null }] : [];
-      const skip = 'pre, table, nav, figure, .sidenote, .katex, .toc';
-      body.querySelectorAll('h2, h3, h4, p, li, blockquote').forEach((el) => {
-        if (el.closest(skip)) return;
-        if (el.matches('li') && el.querySelector('p, ul, ol')) return; // nested; read its children instead
-        if (el.matches('blockquote') && el.querySelector('p')) return;
-        const clone = el.cloneNode(true) as Element;
-        clone.querySelectorAll('.sidenote, .sidenote-number, .katex, sup, img, ul, ol').forEach((n) => n.remove());
-        let text = (clone.textContent || '').replace(/\s+/g, ' ').trim();
-        if (!text) return;
-        if (el.matches('h2, h3, h4, li') && !/[.!?:]$/.test(text)) text += '.';
-        for (const piece of splitText(text)) out.push({ text: piece, el });
-      });
-      return out;
+    function currentBlock(t: number): Element | null {
+      let lo = -1;
+      for (let i = 0; i < blocks.length && blocks[i].t <= t; i++) lo = i;
+      return lo >= 0 ? blockEls[lo] : null;
     }
 
-    function splitText(text: string): string[] {
-      const sentences = text.match(/[^.!?]+(?:[.!?]+["'”’)\]]*|$)/g) || [text];
-      const pieces: string[] = [];
-      let current = '';
-      for (let s of sentences.map((x) => x.trim()).filter(Boolean)) {
-        while (s.length > MAX_CHUNK) {
-          let cut = Math.max(s.lastIndexOf(', ', MAX_CHUNK), s.lastIndexOf('; ', MAX_CHUNK));
-          if (cut < 40) cut = s.lastIndexOf(' ', MAX_CHUNK);
-          if (cut < 1) cut = MAX_CHUNK;
-          if (current) pieces.push(current), (current = '');
-          pieces.push(s.slice(0, cut + 1).trim());
-          s = s.slice(cut + 1).trim();
-        }
-        if (current && current.length + s.length + 1 > MAX_CHUNK) pieces.push(current), (current = '');
-        current = current ? current + ' ' + s : s;
-      }
-      if (current) pieces.push(current);
-      return pieces;
+    // ---- Player ----
+    function render() {
+      const playing = !audio.paused && !audio.ended;
+      root.dataset.state = playing ? 'playing' : audio.currentTime > 0 && !audio.ended ? 'paused' : 'idle';
+      label.textContent = playing ? 'Pause' : root.dataset.state === 'paused' ? 'Resume' : 'Listen';
+      playBtn.setAttribute('aria-label', label.textContent);
+      const t = audio.currentTime;
+      seek.value = String(t);
+      seek.style.setProperty('--progress', `${(t / total) * 100}%`);
+      time.textContent = t > 0 ? `${fmt(t)} / ${fmt(total)}` : fmt(total);
+      highlight(t > 0 && !audio.ended ? currentBlock(t) : null);
     }
 
-    // Kokoro pads each clip with silence; cut it so sentences flow naturally.
-    function trimSilence(a: Float32Array, rate: number): Float32Array {
-      const threshold = 0.01;
-      const pad = Math.round(rate * 0.03);
-      let s = 0;
-      let e = a.length - 1;
-      while (s < a.length && Math.abs(a[s]) < threshold) s++;
-      while (e > s && Math.abs(a[e]) < threshold) e--;
-      if (s >= e) return a;
-      return a.subarray(Math.max(0, s - pad), Math.min(a.length, e + pad));
-    }
+    playBtn.addEventListener('click', () => {
+      if (audio.paused) {
+        audio.playbackRate = Number(speed.value);
+        audio.play();
+      } else audio.pause();
+    });
 
-    // ---------- Kokoro (in a worker) ----------
-    function getWorker(): Worker {
-      if (worker) return worker;
-      worker = new Worker(WORKER_URL, { type: 'module' });
-      worker.onmessage = (e) => onWorkerMessage(e.data);
-      worker.onerror = () => switchToFallback('The voice model could not start.');
-      return worker;
-    }
+    seek.addEventListener('input', () => {
+      audio.currentTime = Number(seek.value);
+      render();
+    });
 
-    function onWorkerMessage(msg: any) {
-      if (msg.type === 'progress' && !modelReady && msg.total) {
-        status.textContent = `Downloading voice ${Math.round((msg.loaded / msg.total) * 100)}% (once, ~90 MB)`;
-      } else if (msg.type === 'ready') {
-        modelReady = true;
-        if (state === 'loading') status.textContent = 'Preparing audio…';
-      } else if (msg.type === 'audio') {
-        if (msg.session !== session || !ctx) return; // from a stopped session
-        const samples = trimSilence(msg.audio, msg.rate);
-        const buf = ctx.createBuffer(1, samples.length, msg.rate);
-        buf.copyToChannel(samples, 0);
-        ready.set(msg.index, buf);
-        schedule();
-      } else if (msg.type === 'error') {
-        if (msg.session !== undefined && msg.session !== session) return;
-        switchToFallback(msg.message);
-      }
-    }
+    speed.addEventListener('change', () => {
+      audio.playbackRate = Number(speed.value);
+      try {
+        localStorage.setItem('tts-speed', speed.value);
+      } catch {}
+    });
 
-    // Put every chunk that is ready onto the audio timeline, back to back.
-    function schedule() {
-      if (!ctx || state === 'idle') return;
-      if (starving) {
-        let buffered = 0;
-        while (ready.has(nextToSchedule + buffered)) buffered++;
-        const needed = nextToSchedule === firstIndex ? 1 : Math.min(REFILL * 2 ** (dryRuns - 1), chunks.length - nextToSchedule);
-        if (buffered < needed) return;
-        starving = false;
-        nextTime = Math.max(nextTime, ctx.currentTime + 0.05);
-      }
-      while (ready.has(nextToSchedule)) {
-        const i = nextToSchedule;
-        const buf = ready.get(i)!;
-        ready.delete(i);
-        const prev = slots[slots.length - 1];
-        const gap = prev ? (chunks[prev.i].el === chunks[i].el ? GAP_SENTENCE : GAP_PARAGRAPH) : 0;
-        const start = Math.max(nextTime + gap, ctx.currentTime + 0.02);
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        src.connect(ctx.destination);
-        src.start(start);
-        slots.push({ i, start, end: start + buf.duration, src });
-        nextTime = start + buf.duration;
-        nextToSchedule++;
-      }
-      if (state === 'loading') {
-        setState('playing');
-        status.textContent = '';
-      }
-    }
-
-    // Runs ~10 times a second: highlights the paragraph being heard,
-    // notices when audio ran out before the next sentence was ready, and ends.
-    function tick() {
-      if (!ctx || state === 'idle') return;
-      const now = ctx.currentTime;
-      slots = slots.filter((s) => s.end > now - 1);
-      const current = slots.find((s) => s.start <= now + 0.05 && s.end > now) || slots.find((s) => s.start > now);
-      if (current) highlight(chunks[current.i].el);
-      if (state !== 'playing') return;
-      const finishedAll = nextToSchedule >= chunks.length && now > nextTime;
-      if (finishedAll) return stop();
-      if (!starving && now > nextTime && nextToSchedule < chunks.length) {
-        starving = true; // ran dry: gather a few sentences, then continue
-        dryRuns++;
-        status.textContent = 'Buffering…';
-      } else if (!starving) {
-        status.textContent = '';
-      }
-    }
-
-    async function start(from = 0) {
-      chunks = collectChunks();
-      if (!chunks.length) return;
-      session++;
-      firstIndex = nextToSchedule = Math.min(from, chunks.length - 1);
-      ready.clear();
-      slots = [];
-      starving = true;
-      dryRuns = 0;
-      setState('loading');
-
-      if (useFallback) return startFallback(firstIndex);
-
-      ctx ??= new AudioContext();
-      await ctx.resume();
-      nextTime = ctx.currentTime;
-      status.textContent = modelReady ? 'Preparing audio…' : 'Loading voice…';
-
-      // Ask for the whole post at once; the worker makes it in reading order.
-      const w = getWorker();
-      w.postMessage({ type: 'cancel', session });
-      for (let i = firstIndex; i < chunks.length; i++) {
-        w.postMessage({ type: 'gen', session, index: i, text: chunks[i].text, voice: voiceSel.value, speed: Number(speedSel.value) });
-      }
-      clearInterval(ticker);
-      ticker = window.setInterval(tick, 100);
-    }
-
-    function currentIndex(): number {
-      if (useFallback) return fallbackIndex;
-      const now = ctx?.currentTime ?? 0;
-      const s = slots.find((x) => x.end > now);
-      return s ? s.i : nextToSchedule;
-    }
-
-    function stop() {
-      session++;
-      worker?.postMessage({ type: 'cancel', session });
-      clearInterval(ticker);
-      for (const s of slots) {
-        try { s.src.stop(); } catch {}
-      }
-      slots = [];
-      ready.clear();
-      if (ctx?.state === 'suspended') ctx.resume();
-      if ('speechSynthesis' in window) speechSynthesis.cancel();
-      setState('idle');
-    }
-
-    // ---------- Fallback: the browser's built-in voice ----------
-    function switchToFallback(reason: string) {
-      console.warn('[listen] Kokoro unavailable, using the browser voice:', reason);
-      worker?.terminate();
-      worker = null;
-      const at = currentIndex();
-      const wasActive = state !== 'idle';
-      stop();
-      if (!('speechSynthesis' in window)) {
-        status.textContent = 'Sorry, audio isn’t supported in this browser.';
-        return;
-      }
-      useFallback = true;
-      if (wasActive) start(at);
-    }
-
-    function startFallback(from: number) {
-      if (!('speechSynthesis' in window)) {
-        setState('idle');
-        status.textContent = 'Sorry, audio isn’t supported in this browser.';
-        return;
-      }
-      speechSynthesis.cancel();
-      const mySession = session;
-      setState('playing');
-      status.textContent = 'Using your browser’s voice';
-      const speakFrom = (i: number) => {
-        if (mySession !== session) return;
-        if (i >= chunks.length) return stop();
-        fallbackIndex = i;
-        highlight(chunks[i].el);
-        const u = new SpeechSynthesisUtterance(chunks[i].text);
-        u.rate = Number(speedSel.value);
-        u.onend = () => speakFrom(i + 1);
-        speechSynthesis.speak(u);
-      };
-      speakFrom(from);
-    }
-
-    // ---------- Controls ----------
-    playBtn.addEventListener('click', async () => {
-      if (state === 'idle') return start(0);
-      if (state === 'loading') return;
-      if (state === 'playing') {
-        if (useFallback) speechSynthesis.pause();
-        else await ctx?.suspend();
-        setState('paused');
-      } else if (state === 'paused') {
-        if (useFallback) speechSynthesis.resume();
-        else await ctx?.resume();
-        setState('playing');
+    // Click a highlighted-able paragraph while listening to jump there.
+    body.addEventListener('click', (e) => {
+      if (root.dataset.state === 'idle') return;
+      const el = (e.target as Element).closest('h2, h3, h4, p, li');
+      if (!el || (e.target as Element).closest('a, button, input, label')) return;
+      const i = blockEls.indexOf(el);
+      if (i >= 0) {
+        audio.currentTime = blocks[i].t;
+        render();
       }
     });
 
-    stopBtn.addEventListener('click', stop);
+    audio.addEventListener('play', render);
+    audio.addEventListener('pause', render);
+    audio.addEventListener('timeupdate', render);
+    audio.addEventListener('ended', () => {
+      audio.currentTime = 0;
+      render();
+    });
+    audio.addEventListener('ratechange', () => (speed.value = String(audio.playbackRate)));
 
-    const savePrefs = () => {
-      try {
-        localStorage.setItem('tts-voice', voiceSel.value);
-        localStorage.setItem('tts-speed', speedSel.value);
-      } catch {}
-      // Audio already made uses the old voice; restart from the current sentence.
-      if (state !== 'idle') {
-        const at = currentIndex();
-        stop();
-        start(at);
-      }
-    };
-    voiceSel.addEventListener('change', savePrefs);
-    speedSel.addEventListener('change', savePrefs);
-
-    // Warm up the model when the reader shows interest, so the first play is quicker.
-    playBtn.addEventListener('pointerenter', () => { if (!useFallback && !worker) getWorker().postMessage({ type: 'load' }); }, { once: true });
-
-    window.addEventListener('pagehide', stop);
+    // Lock-screen / headphone controls on phones.
+    if ('mediaSession' in navigator) {
+      audio.addEventListener('play', () => {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: document.querySelector('article h1')?.textContent?.trim() || document.title,
+          artist: 'Abdullakh Abshukur',
+        });
+      });
+    }
   }
 </script>
 
@@ -367,7 +188,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-2) var(--space-3);
     margin-top: var(--space-3);
   }
 
@@ -387,19 +208,10 @@
     transition: border-color 0.15s ease, color 0.15s ease;
   }
 
-  .listen-btn:hover {
+  .listen-btn:hover,
+  [data-state='playing'] .listen-btn {
     border-color: var(--color-accent);
     color: var(--color-accent);
-  }
-
-  .listen-stop {
-    width: 2rem;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .listen-btn[hidden] {
-    display: none;
   }
 
   .icon {
@@ -416,8 +228,55 @@
     display: block;
   }
 
-  [data-state='loading'] .listen-btn[data-listen-play] {
-    cursor: progress;
+  .listen-seek {
+    flex: 1 1 8rem;
+    min-width: 6rem;
+    height: 2rem;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    appearance: none;
+    --progress: 0%;
+  }
+
+  .listen-seek::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: 3px;
+    background: linear-gradient(to right, var(--color-accent) var(--progress), var(--color-border) var(--progress));
+  }
+
+  .listen-seek::-moz-range-track {
+    height: 3px;
+    border-radius: 3px;
+    background: var(--color-border);
+  }
+
+  .listen-seek::-moz-range-progress {
+    height: 3px;
+    border-radius: 3px;
+    background: var(--color-accent);
+  }
+
+  .listen-seek::-webkit-slider-thumb {
+    appearance: none;
+    width: 11px;
+    height: 11px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  .listen-seek::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  .listen-time {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .listen-option select {

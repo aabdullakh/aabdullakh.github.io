@@ -24,6 +24,31 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      # ---- Post narration (the "Listen" player) ----
+      # Kokoro turns each post into an MP3. Finished MP3s are kept in the
+      # Actions cache, so only new or edited posts are narrated on each push.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Restore narration cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            public/audio
+            src/data/audio.json
+          # A new key every run (caches can't be overwritten), restoring the latest one.
+          key: narration-${{ github.run_id }}
+          restore-keys: narration-
+
+      - name: Narrate posts
+        # If narration fails, the site still deploys; posts without audio just hide the player.
+        continue-on-error: true
+        timeout-minutes: 45
+        run: npm run audio
+
       - name: Install, build, and upload site
         uses: withastro/action@v6
 

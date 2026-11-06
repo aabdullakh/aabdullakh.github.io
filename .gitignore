@@ -23,3 +23,8 @@ pnpm-debug.log*
 # jetbrains setting folder
 .idea/
 aabdullakh.github.io/
+
+# Narration MP3s are made by `npm run audio` (locally or in GitHub Actions), not committed.
+public/audio/
+src/data/audio.json
+scripts/audio/node_modules/
