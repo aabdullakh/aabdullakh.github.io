@@ -1,0 +1,417 @@
+---
+// "Listen to this post": reads the article aloud with Kokoro, an open-source
+// text-to-speech model that runs entirely in the reader's browser (see
+// public/tts/kokoro-worker.js). Free, no API key, no server.
+//
+// If the browser can't run the model (very old browser, or the download
+// fails), it falls back to the browser's built-in voice (Web Speech API).
+---
+
+<div class="listen" data-listen>
+  <button type="button" class="listen-btn" data-listen-play aria-label="Listen to this post">
+    <svg class="icon icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"></path></svg>
+    <svg class="icon icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"></path></svg>
+    <span data-listen-label>Listen</span>
+  </button>
+  <button type="button" class="listen-btn listen-stop" data-listen-stop aria-label="Stop" hidden>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z" fill="currentColor"></path></svg>
+  </button>
+  <label class="listen-option meta">
+    <span class="visually-hidden">Voice</span>
+    <select data-listen-voice aria-label="Voice">
+      <option value="am_michael">Michael</option>
+      <option value="af_heart">Heart</option>
+      <option value="am_fenrir">Fenrir</option>
+      <option value="af_bella">Bella</option>
+      <option value="bm_george">George (UK)</option>
+    </select>
+  </label>
+  <label class="listen-option meta">
+    <span class="visually-hidden">Speed</span>
+    <select data-listen-speed aria-label="Speed">
+      <option value="1">1×</option>
+      <option value="1.2">1.2×</option>
+      <option value="1.4">1.4×</option>
+    </select>
+  </label>
+  <span class="meta listen-status" data-listen-status aria-live="polite"></span>
+</div>
+
+<script>
+  type Chunk = { text: string; el: Element | null };
+
+  const WORKER_URL = '/tts/kokoro-worker.js';
+  const LOOKAHEAD = 2; // how many chunks to synthesize ahead of playback
+  const MAX_CHUNK = 260; // characters per synthesis call
+
+  const root = document.querySelector<HTMLElement>('[data-listen]');
+  const body = document.querySelector<HTMLElement>('.entry-body');
+
+  if (root && body) setup(root, body);
+
+  function setup(root: HTMLElement, body: HTMLElement) {
+    const playBtn = root.querySelector<HTMLButtonElement>('[data-listen-play]')!;
+    const stopBtn = root.querySelector<HTMLButtonElement>('[data-listen-stop]')!;
+    const label = root.querySelector<HTMLElement>('[data-listen-label]')!;
+    const status = root.querySelector<HTMLElement>('[data-listen-status]')!;
+    const voiceSel = root.querySelector<HTMLSelectElement>('[data-listen-voice]')!;
+    const speedSel = root.querySelector<HTMLSelectElement>('[data-listen-speed]')!;
+
+    try {
+      voiceSel.value = localStorage.getItem('tts-voice') || voiceSel.value;
+      speedSel.value = localStorage.getItem('tts-speed') || speedSel.value;
+    } catch {}
+
+    let state: 'idle' | 'loading' | 'playing' | 'paused' = 'idle';
+    let worker: Worker | null = null;
+    let modelReady = false;
+    let useFallback = !('Worker' in window) || typeof WebAssembly === 'undefined' || !('AudioContext' in window);
+
+    let ctx: AudioContext | null = null;
+    let session = 0;
+    let chunks: Chunk[] = [];
+    let playIndex = 0;
+    let requested = 0;
+    const ready = new Map<number, AudioBuffer>();
+    let source: AudioBufferSourceNode | null = null;
+    let highlighted: Element | null = null;
+
+    // ---------- UI ----------
+    function setState(next: typeof state) {
+      state = next;
+      root.dataset.state = next;
+      label.textContent = next === 'playing' ? 'Pause' : next === 'paused' ? 'Resume' : next === 'loading' ? 'Loading…' : 'Listen';
+      playBtn.setAttribute('aria-label', label.textContent);
+      stopBtn.hidden = next === 'idle';
+      if (next === 'idle') {
+        highlight(null);
+        status.textContent = '';
+      }
+    }
+
+    function highlight(el: Element | null) {
+      if (highlighted === el) return;
+      highlighted?.classList.remove('tts-reading');
+      el?.classList.add('tts-reading');
+      highlighted = el;
+    }
+
+    // ---------- Text ----------
+    function collectChunks(): Chunk[] {
+      const title = document.querySelector('article h1')?.textContent?.trim();
+      const out: Chunk[] = title ? [{ text: title + '.', el: null }] : [];
+      const skip = 'pre, table, nav, figure, .sidenote, .katex, .toc';
+      const blocks = body.querySelectorAll('h2, h3, h4, p, li, blockquote');
+      blocks.forEach((el) => {
+        if (el.closest(skip)) return;
+        if (el.matches('li') && el.querySelector('p, ul, ol')) return; // nested; read its children instead
+        if (el.matches('blockquote') && el.querySelector('p')) return;
+        const clone = el.cloneNode(true) as Element;
+        clone.querySelectorAll('.sidenote, .sidenote-number, .katex, sup, img, ul, ol').forEach((n) => n.remove());
+        let text = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!text) return;
+        if (el.matches('h2, h3, h4, li') && !/[.!?:]$/.test(text)) text += '.';
+        for (const piece of splitText(text)) out.push({ text: piece, el });
+      });
+      return out;
+    }
+
+    function splitText(text: string): string[] {
+      const sentences = text.match(/[^.!?]+(?:[.!?]+["'”’)\]]*|$)/g) || [text];
+      const pieces: string[] = [];
+      let current = '';
+      for (let s of sentences.map((x) => x.trim()).filter(Boolean)) {
+        while (s.length > MAX_CHUNK) {
+          // Very long sentence: break at the last comma/semicolon before the limit.
+          let cut = Math.max(s.lastIndexOf(', ', MAX_CHUNK), s.lastIndexOf('; ', MAX_CHUNK));
+          if (cut < 40) cut = s.lastIndexOf(' ', MAX_CHUNK);
+          if (cut < 1) cut = MAX_CHUNK;
+          if (current) pieces.push(current), (current = '');
+          pieces.push(s.slice(0, cut + 1).trim());
+          s = s.slice(cut + 1).trim();
+        }
+        if (current && current.length + s.length + 1 > MAX_CHUNK) pieces.push(current), (current = '');
+        current = current ? current + ' ' + s : s;
+      }
+      if (current) pieces.push(current);
+      return pieces;
+    }
+
+    // ---------- Kokoro (in a worker) ----------
+    function getWorker(): Worker {
+      if (worker) return worker;
+      worker = new Worker(WORKER_URL, { type: 'module' });
+      worker.onmessage = (e) => onWorkerMessage(e.data);
+      worker.onerror = () => switchToFallback('The voice model could not start.');
+      return worker;
+    }
+
+    function onWorkerMessage(msg: any) {
+      if (msg.type === 'progress' && !modelReady && msg.total) {
+        status.textContent = `Downloading voice ${Math.round((msg.loaded / msg.total) * 100)}% (once, ~90 MB)`;
+      } else if (msg.type === 'ready') {
+        modelReady = true;
+        if (state === 'loading') status.textContent = 'Preparing audio…';
+      } else if (msg.type === 'audio') {
+        const [s, i] = String(msg.id).split(':').map(Number);
+        if (s !== session || !ctx) return; // result from a stopped session
+        const buf = ctx.createBuffer(1, msg.audio.length, msg.rate);
+        buf.copyToChannel(msg.audio, 0);
+        ready.set(i, buf);
+        if (!source && (state === 'playing' || state === 'loading')) playNext();
+      } else if (msg.type === 'error') {
+        if (msg.id && Number(String(msg.id).split(':')[0]) !== session) return;
+        switchToFallback(msg.message);
+      }
+    }
+
+    function requestMore() {
+      while (requested < chunks.length && requested < playIndex + LOOKAHEAD + 1) {
+        getWorker().postMessage({
+          type: 'gen',
+          id: `${session}:${requested}`,
+          text: chunks[requested].text,
+          voice: voiceSel.value,
+          speed: Number(speedSel.value),
+        });
+        requested++;
+      }
+    }
+
+    function playNext() {
+      if (!ctx) return;
+      if (playIndex >= chunks.length) return stop();
+      const buf = ready.get(playIndex);
+      if (!buf) {
+        requestMore();
+        return; // onWorkerMessage calls playNext when it arrives
+      }
+      ready.delete(playIndex);
+      highlight(chunks[playIndex].el);
+      if (state === 'loading') setState('playing');
+      status.textContent = '';
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      const mySession = session;
+      src.onended = () => {
+        if (mySession !== session || source !== src) return;
+        source = null;
+        playIndex++;
+        playNext();
+      };
+      source = src;
+      src.start();
+      requestMore();
+    }
+
+    async function start(from = 0) {
+      chunks = collectChunks();
+      if (!chunks.length) return;
+      session++;
+      playIndex = Math.min(from, chunks.length - 1);
+      requested = playIndex;
+      ready.clear();
+      setState('loading');
+
+      if (useFallback) return startFallback();
+
+      ctx ??= new AudioContext();
+      await ctx.resume();
+      status.textContent = modelReady ? 'Preparing audio…' : 'Loading voice…';
+      requestMore();
+    }
+
+    function stop() {
+      session++;
+      if (source) {
+        const s = source;
+        source = null;
+        try { s.stop(); } catch {}
+      }
+      ready.clear();
+      if (ctx?.state === 'suspended') ctx.resume();
+      if ('speechSynthesis' in window) speechSynthesis.cancel();
+      setState('idle');
+    }
+
+    // ---------- Fallback: the browser's built-in voice ----------
+    function switchToFallback(reason: string) {
+      console.warn('[listen] Kokoro unavailable, using the browser voice:', reason);
+      worker?.terminate();
+      worker = null;
+      if (!('speechSynthesis' in window)) {
+        stop();
+        status.textContent = 'Sorry, audio isn’t supported in this browser.';
+        return;
+      }
+      useFallback = true;
+      const wasActive = state !== 'idle';
+      const at = playIndex;
+      if (source) { try { source.stop(); } catch {} source = null; }
+      if (wasActive) {
+        session++;
+        playIndex = at;
+        startFallback();
+      }
+    }
+
+    function startFallback() {
+      if (!('speechSynthesis' in window)) {
+        setState('idle');
+        status.textContent = 'Sorry, audio isn’t supported in this browser.';
+        return;
+      }
+      speechSynthesis.cancel();
+      const mySession = session;
+      setState('playing');
+      status.textContent = 'Using your browser’s voice';
+      const speakFrom = (i: number) => {
+        if (mySession !== session) return;
+        if (i >= chunks.length) return stop();
+        playIndex = i;
+        highlight(chunks[i].el);
+        const u = new SpeechSynthesisUtterance(chunks[i].text);
+        u.rate = Number(speedSel.value);
+        u.onend = () => speakFrom(i + 1);
+        speechSynthesis.speak(u);
+      };
+      speakFrom(playIndex);
+    }
+
+    // ---------- Controls ----------
+    playBtn.addEventListener('click', async () => {
+      if (state === 'idle') return start(0);
+      if (state === 'loading') return;
+      if (state === 'playing') {
+        if (useFallback) speechSynthesis.pause();
+        else await ctx?.suspend();
+        setState('paused');
+      } else if (state === 'paused') {
+        if (useFallback) speechSynthesis.resume();
+        else await ctx?.resume();
+        setState('playing');
+      }
+    });
+
+    stopBtn.addEventListener('click', stop);
+
+    const savePrefs = () => {
+      try {
+        localStorage.setItem('tts-voice', voiceSel.value);
+        localStorage.setItem('tts-speed', speedSel.value);
+      } catch {}
+      // Chunks already generated keep the old voice; restart from the current one.
+      if (state === 'playing' || state === 'paused') {
+        const at = playIndex;
+        stop();
+        start(at);
+      }
+    };
+    voiceSel.addEventListener('change', savePrefs);
+    speedSel.addEventListener('change', savePrefs);
+
+    // Warm up the model when the reader shows interest, so the first play is quicker.
+    playBtn.addEventListener('pointerenter', () => { if (!useFallback && !worker) getWorker().postMessage({ type: 'load' }); }, { once: true });
+
+    window.addEventListener('pagehide', stop);
+  }
+</script>
+
+<style>
+  .listen {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+  }
+
+  .listen-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    height: 2rem;
+    padding: 0 0.85em;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-ink-soft);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .listen-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .listen-stop {
+    width: 2rem;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .listen-btn[hidden] {
+    display: none;
+  }
+
+  .icon {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  .icon-pause,
+  [data-state='playing'] .icon-play {
+    display: none;
+  }
+
+  [data-state='playing'] .icon-pause {
+    display: block;
+  }
+
+  [data-state='loading'] .listen-btn[data-listen-play] {
+    cursor: progress;
+  }
+
+  .listen-option select {
+    height: 2rem;
+    padding: 0 0.5em;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-ink-soft);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .listen-option select option {
+    background: var(--color-bg);
+    color: var(--color-ink);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* The paragraph currently being read. Global, since it targets post content. */
+  :global(.tts-reading) {
+    background: var(--color-selection);
+    border-radius: var(--radius);
+    box-shadow: 0 0 0 0.25em var(--color-selection);
+    transition: background 0.2s ease;
+  }
+
+  @media print {
+    .listen {
+      display: none;
+    }
+  }
+</style>

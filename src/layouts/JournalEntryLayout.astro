@@ -2,6 +2,7 @@
 import type { JournalEntry } from '../lib/content';
 import BaseLayout from './BaseLayout.astro';
 import TableOfContents from '../components/TableOfContents.astro';
+import ListenButton from '../components/ListenButton.astro';
 import { formatDate, toISODate } from '../lib/dates';
 
 interface Heading {
@@ -47,6 +48,8 @@ const { title, date, updated, description, tags } = entry.data;
         </ul>
       )
     }
+
+    <ListenButton />
 
     <TableOfContents headings={headings} />
 
