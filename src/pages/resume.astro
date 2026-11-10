@@ -1,0 +1,56 @@
+---
+// Placeholder while the resume is being updated. When it's ready, either put
+// the new PDF in public/resume.pdf and point the "Resume" links back to
+// /resume.pdf, or replace this page with the resume itself.
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Resume" description="My resume is being updated. Coming soon.">
+  <article class="prose coming-soon">
+    <p class="meta">resume</p>
+    <h1>Coming soon<span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></h1>
+    <p>I'm updating my resume with what I've been building lately. Until it's ready, my <a href="/projects/">projects</a> and <a href="/blog/">blog</a> show what I'm working on.</p>
+    <p>Want it sooner? Reach out on <a href="https://www.linkedin.com/in/abdullahabs/">LinkedIn</a> or by <a href="mailto:abdullah.abshukur@gmail.com">email</a>.</p>
+  </article>
+</BaseLayout>
+
+<style>
+  .coming-soon {
+    padding-block: var(--space-6);
+  }
+
+  .coming-soon h1 {
+    font-family: var(--font-mono);
+    font-size: 1.6rem;
+  }
+
+  /* Three dots that fade in one after another. */
+  .dots span {
+    animation: blink 1.4s infinite both;
+  }
+
+  .dots span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .dots span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes blink {
+    0%,
+    80%,
+    100% {
+      opacity: 0.2;
+    }
+    40% {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dots span {
+      animation: none;
+    }
+  }
+</style>
